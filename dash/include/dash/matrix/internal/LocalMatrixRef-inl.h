@@ -324,7 +324,7 @@ T & LocalMatrixRef<T, NumDim, CUR, PatternT>
 
 template<typename T, dim_t NumDim, dim_t CUR, class PatternT>
 template<typename ... Args>
-T & LocalMatrixRef<T, NumDim, CUR, PatternT>
+inline T & LocalMatrixRef<T, NumDim, CUR, PatternT>
 ::at(
   Args... args)
 {
@@ -346,7 +346,7 @@ T & LocalMatrixRef<T, NumDim, CUR, PatternT>
 
 template<typename T, dim_t NumDim, dim_t CUR, class PatternT>
 template<typename ... Args>
-T & LocalMatrixRef<T, NumDim, CUR, PatternT>
+inline T & LocalMatrixRef<T, NumDim, CUR, PatternT>
 ::operator()(
   Args... args)
 {

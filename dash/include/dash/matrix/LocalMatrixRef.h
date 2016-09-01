@@ -201,7 +201,7 @@ public:
    *           coordinates.
    */
   template<typename ... Args>
-  T & at(
+  inline T & at(
     /// Global coordinates
     Args... args);
 
@@ -215,7 +215,7 @@ public:
    * \see  at
    */
   template<typename... Args>
-  T & operator()(
+  inline T & operator()(
     /// Coordinates of element in global cartesian index space.
     Args... args);
 
