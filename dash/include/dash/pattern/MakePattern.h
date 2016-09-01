@@ -40,9 +40,11 @@ make_team_spec(
   // Deduce number of dimensions from size spec:
   const dim_t ndim  = SizeSpecType::ndim();
   // Number of processing nodes:
+//auto n_nodes      = dash::util::UnitLocality::NumNodes();
   auto n_nodes      = dash::util::Locality::NumNodes();
   // Number of NUMA domains per processing node:
-  auto n_numa_dom   = dash::util::Locality::NumNUMANodes();
+//auto n_numa_dom   = dash::util::Locality::NumNUMANodes();
+  auto n_numa_dom   = uloc.num_numa();
   // Number of cores per processing node:
   auto n_cores      = dash::util::Locality::NumCores();
 
