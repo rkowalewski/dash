@@ -112,7 +112,6 @@ public:
    * Default constructor.
    */
   LocalMatrixRef<T, NumDimensions, CUR, PatternT>()
-  : _refview(nullptr)
   {
     DASH_LOG_TRACE_VAR("LocalMatrixRef<T,D,C>()", NumDimensions);
     DASH_LOG_TRACE_VAR("LocalMatrixRef<T,D,C>()", CUR);
@@ -278,7 +277,7 @@ public:
     size_type extent);
 
 private:
-  MatrixRefView_t * _refview;
+  MatrixRefView_t _refview;
 };
 
 /**
@@ -319,7 +318,6 @@ class LocalMatrixRef<T, NumDimensions, 0, PatternT>
    * Default constructor.
    */
   LocalMatrixRef<T, NumDimensions, 0, PatternT>()
-  : _refview(nullptr)
   {
     DASH_LOG_TRACE_VAR("LocalMatrixRef<T,D,0>()", NumDimensions);
   }
@@ -360,7 +358,7 @@ class LocalMatrixRef<T, NumDimensions, 0, PatternT>
   inline T operator/ (const T & value);
 
  private:
-  MatrixRefView<T, NumDimensions, PatternT> * _refview;
+  MatrixRefView<T, NumDimensions, PatternT> _refview;
 };
 
 } // namespace dash
