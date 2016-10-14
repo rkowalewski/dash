@@ -406,6 +406,9 @@ struct dart_domain_locality_s
     dart_locality_scope_t           scope;
     /** Level in the domain locality hierarchy. */
     int                             level;
+
+    /** The domain's global index within its scope. */
+    int                             global_index;
     /** The domain's index within its parent domain. */
     int                             relative_index;
 
@@ -452,15 +455,17 @@ typedef struct dart_domain_locality_s
  */
 typedef struct {
     /** Unit ID relative to team. */
-    dart_unit_t            unit;
+    dart_unit_t              unit;
 
     /** Team ID. */
-    dart_team_t            team;
+    dart_team_t              team;
 
     /** Hardware specification of the unit's affinity. */
-    dart_hwinfo_t          hwinfo;
+    dart_hwinfo_t            hwinfo;
 
-    dart_domain_locality_t domain;
+    dart_domain_locality_t  _domain;
+
+    char                     domain_tag[DART_LOCALITY_DOMAIN_TAG_MAX_SIZE];
 }
 dart_unit_locality_t;
 

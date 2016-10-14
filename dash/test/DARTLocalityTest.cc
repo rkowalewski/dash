@@ -15,7 +15,7 @@ TEST_F(DARTLocalityTest, UnitLocality)
   DASH_LOG_TRACE_VAR("DARTLocalityTest.UnitLocality", *ul);
 
   DASH_LOG_TRACE_VAR("DARTLocalityTest.UnitLocality", ul->unit);
-  DASH_LOG_TRACE_VAR("DARTLocalityTest.UnitLocality", ul->domain.domain_tag);
+  DASH_LOG_TRACE_VAR("DARTLocalityTest.UnitLocality", ul->domain_tag);
   DASH_LOG_TRACE_VAR("DARTLocalityTest.UnitLocality", ul->hwinfo.host);
   DASH_LOG_TRACE_VAR("DARTLocalityTest.UnitLocality", ul->hwinfo.numa_id);
   DASH_LOG_TRACE_VAR("DARTLocalityTest.UnitLocality", ul->hwinfo.cpu_id);
@@ -39,7 +39,7 @@ TEST_F(DARTLocalityTest, UnitLocality)
   dart_domain_locality_t * dl;
   ASSERT_EQ_U(
     DART_OK,
-    dart_domain_team_locality(DART_TEAM_ALL, ul->domain.domain_tag, &dl));
+    dart_domain_team_locality(DART_TEAM_ALL, ul->domain_tag, &dl));
   DASH_LOG_TRACE("DARTLocalityTest.UnitLocality",
                  "pointer to local unit's domain descriptor:", dl);
   DASH_LOG_TRACE_VAR("DARTLocalityTest.UnitLocality", *dl);
@@ -60,7 +60,6 @@ TEST_F(DARTLocalityTest, Domains)
 
   DASH_LOG_TRACE_VAR("DARTLocalityTest.Domains", dl->domain_tag);
   DASH_LOG_TRACE_VAR("DARTLocalityTest.Domains", dl->level);
-//DASH_LOG_TRACE_VAR("DARTLocalityTest.Domains", dl->host);
   DASH_LOG_TRACE_VAR("DARTLocalityTest.Domains", dl->num_domains);
   DASH_LOG_TRACE_VAR("DARTLocalityTest.Domains", dl->num_nodes);
 //DASH_LOG_TRACE_VAR("DARTLocalityTest.Domains", dl->hwinfo.num_sockets);

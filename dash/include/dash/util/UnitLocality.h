@@ -44,7 +44,18 @@ public:
         _team->dart_id(), unit, &_unit_locality),
       DART_OK);
 
-    dart_domain_locality_t * node_locality = &_unit_locality->domain;
+    dart_domain_locality_t * team_domain;
+    DASH_ASSERT_RETURNS(
+      dart_domain_team_locality(
+        team.dart_id(), ".", &team_domain),
+      DART_OK);
+
+    DASH_ASSERT_RETURNS(
+      dart_domain_find(
+        team_domain, _unit_locality->domain_tag, &_unit_domain),
+      DART_OK);
+
+    dart_domain_locality_t * node_locality = _unit_domain;
     while (node_locality->scope > DART_LOCALITY_SCOPE_NODE) {
       node_locality = node_locality->parent;
     }
@@ -75,13 +86,13 @@ public:
   inline dart_domain_locality_t & domain()
   {
     DASH_ASSERT(nullptr != _unit_locality);
-    return _unit_locality->domain;
+    return *_unit_domain;
   }
 
   inline const dart_domain_locality_t & domain() const
   {
     DASH_ASSERT(nullptr != _unit_locality);
-    return _unit_locality->domain;
+    return *_unit_domain;
   }
 
   inline dash::Team & team()
@@ -107,28 +118,24 @@ public:
   inline std::string domain_tag() const
   {
     DASH_ASSERT(nullptr != _unit_locality);
-//  return _unit_locality->domain_tag;
-    return _unit_locality->domain.domain_tag;
+    return _unit_domain->domain_tag;
   }
 
   inline std::string host() const
   {
     DASH_ASSERT(nullptr != _unit_locality);
-//  return _unit_locality->host;
     return _unit_locality->hwinfo.host;
   }
 
   inline void set_domain_tag(
     const std::string & tag)
   {
-//  strcpy(_unit_locality->domain_tag, tag.c_str());
-    strcpy(_unit_locality->domain.domain_tag, tag.c_str());
+    strcpy(_unit_domain->domain_tag, tag.c_str());
   }
 
   inline void set_host(
     const std::string & hostname)
   {
-//  strcpy(_unit_locality->host, hostname.c_str());
     strcpy(_unit_locality->hwinfo.host, hostname.c_str());
   }
 
@@ -160,7 +167,7 @@ public:
 
   inline int num_numa() const
   {
-    dart_domain_locality_t * dom = &_unit_locality->domain;
+    dart_domain_locality_t * dom = _unit_domain;
     while (dom->scope >= DART_LOCALITY_SCOPE_NUMA) {
       dom = dom->parent;
     }
@@ -293,6 +300,7 @@ private:
 
   dash::Team                 * _team          = nullptr;
   dart_unit_locality_t       * _unit_locality = nullptr;
+  dart_domain_locality_t     * _unit_domain   = nullptr;
   dash::util::LocalityDomain   _node_domain;
 
 }; // class UnitLocality

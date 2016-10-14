@@ -56,12 +56,6 @@ dart_ret_t dart__base__locality__scope_domains_rec(
   int                            * num_domains_out,
   char                         *** domain_tags_out);
 
-dart_locality_scope_t dart__base__locality__scope_parent(
-  dart_locality_scope_t            scope);
-
-dart_locality_scope_t dart__base__locality__scope_child(
-  dart_locality_scope_t            scope);
-
 dart_ret_t dart__base__locality__group_subdomains(
   dart_domain_locality_t         * domain,
   const char                    ** group_subdomain_tags,
@@ -129,7 +123,9 @@ dart_ret_t dart__base__locality__create(
    *       assertion.
    */
   DART_ASSERT_MSG(
-    NULL == dart__base__locality__unit_mapping_[team],
+    (NULL == dart__base__locality__unit_mapping_[team]  &&
+     NULL == dart__base__locality__global_domain_[team] &&
+     NULL == dart__base__locality__host_topology_[team]),
     "dash__base__locality__create(): "
     "locality data of team is already initialized");
 
@@ -531,11 +527,6 @@ dart_ret_t dart__base__locality__domain_group(
 
     dart__base__locality__domain__init(group_domain);
 
-    /* TODO: hwinfo of group domain is not correctly initialized, and doing
-     *       so is not trivial.
-     *       Using parent domain's hwinfo as an intermediate solution.
-     */
-//  group_domain->hwinfo         = group_parent_domain->hwinfo;
     group_domain->team           = group_parent_domain->team;
     group_domain->scope          = DART_LOCALITY_SCOPE_GROUP;
     group_domain->level          = group_parent_domain->level + 1;
@@ -1000,26 +991,3 @@ dart_ret_t dart__base__locality__scope_domains_rec(
   return DART_OK;
 }
 
-dart_locality_scope_t dart__base__locality__scope_parent(
-  dart_locality_scope_t scope)
-{
-  switch (scope) {
-    case DART_LOCALITY_SCOPE_GLOBAL: return DART_LOCALITY_SCOPE_NODE;
-    case DART_LOCALITY_SCOPE_NODE:   return DART_LOCALITY_SCOPE_MODULE;
-    case DART_LOCALITY_SCOPE_MODULE: return DART_LOCALITY_SCOPE_NUMA;
-    case DART_LOCALITY_SCOPE_NUMA:   return DART_LOCALITY_SCOPE_CORE;
-    default:                         return DART_LOCALITY_SCOPE_UNDEFINED;
-  }
-}
-
-dart_locality_scope_t dart__base__locality__scope_child(
-  dart_locality_scope_t scope)
-{
-  switch (scope) {
-    case DART_LOCALITY_SCOPE_CORE:   return DART_LOCALITY_SCOPE_NUMA;
-    case DART_LOCALITY_SCOPE_NUMA:   return DART_LOCALITY_SCOPE_MODULE;
-    case DART_LOCALITY_SCOPE_MODULE: return DART_LOCALITY_SCOPE_NODE;
-    case DART_LOCALITY_SCOPE_NODE:   return DART_LOCALITY_SCOPE_GLOBAL;
-    default:                         return DART_LOCALITY_SCOPE_UNDEFINED;
-  }
-}

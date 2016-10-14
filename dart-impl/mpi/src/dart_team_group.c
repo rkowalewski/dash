@@ -133,6 +133,9 @@ dart_ret_t dart_group_intersect(
  * TODO: [JS] This function is likely to be incorrect since dart_group_copy
  *            does not do a deep-copy and hence the call to dart_group_union
  *            has the same MPI_Group as input and output.
+ *
+ * <fuchst>   Does this function expect global or local unit ids (relative
+ *            to a team)?
  */
 dart_ret_t dart_group_addmember(
   dart_group_t *g,
@@ -647,10 +650,6 @@ dart_ret_t dart_team_create(
     MPI_Win_lock_all(0, win);
     DART_LOG_DEBUG("TEAMCREATE - create team %d from parent team %d",
                    *newteam, teamid);
-  }
-
-  if (*newteam != DART_TEAM_NULL && dart_initialized() > 1) {
-    dart__base__locality__create(*newteam);
   }
 
   return DART_OK;

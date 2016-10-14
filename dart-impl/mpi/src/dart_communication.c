@@ -1436,14 +1436,20 @@ dart_ret_t dart_bcast(
   DART_LOG_TRACE("dart_bcast() root:%d team:%d nbytes:%"PRIu64"",
                  root, teamid, nbytes);
 
-  int result = dart_adapt_teamlist_convert (teamid, &index);
+  int result = dart_adapt_teamlist_convert(teamid, &index);
   if (result == -1) {
+    DART_LOG_ERROR("dart_bcast ! root:%d -> team:%d "
+                   "dart_adapt_teamlist_convert failed", root, teamid);
     return DART_ERR_INVAL;
   }
   comm = dart_team_data[index].comm;
   if (MPI_Bcast(buf, nbytes, MPI_BYTE, root, comm) != MPI_SUCCESS) {
+    DART_LOG_ERROR("dart_bcast ! root:%d -> team:%d "
+                   "MPI_Bcast failed", root, teamid);
     return DART_ERR_INVAL;
   }
+  DART_LOG_TRACE("dart_bcast > root:%d team:%d nbytes:%"PRIu64" finished",
+                 root, teamid, nbytes);
   return DART_OK;
 }
 
@@ -1517,6 +1523,8 @@ dart_ret_t dart_allgather(
 
   result = dart_adapt_teamlist_convert(teamid, &index);
   if (result == -1) {
+    DART_LOG_ERROR("dart_allgather ! team:%d "
+                   "dart_adapt_teamlist_convert failed", teamid);
     return DART_ERR_INVAL;
   }
   if (sendbuf == recvbuf || NULL == sendbuf) {
@@ -1556,6 +1564,8 @@ dart_ret_t dart_allgatherv(
 
   result = dart_adapt_teamlist_convert(teamid, &index);
   if (result == -1) {
+    DART_LOG_ERROR("dart_allgatherv ! team:%d "
+                   "dart_adapt_teamlist_convert failed", teamid);
     return DART_ERR_INVAL;
   }
   if (sendbuf == recvbuf || NULL == sendbuf) {

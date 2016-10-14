@@ -22,6 +22,18 @@
  * Domain Locality                                                          *
  * ======================================================================== */
 
+dart_ret_t dart_team_locality_init(
+  dart_team_t                     team)
+{
+  return dart__base__locality__create(team);
+}
+
+dart_ret_t dart_team_locality_finalize(
+  dart_team_t                     team)
+{
+  return dart__base__locality__delete(team);
+}
+
 dart_ret_t dart_domain_team_locality(
   dart_team_t                     team,
   const char                    * domain_tag,
