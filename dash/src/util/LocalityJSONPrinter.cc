@@ -28,14 +28,26 @@ LocalityJSONPrinter & LocalityJSONPrinter::operator<<(
      << "'cpu_mhz':{"
      << "'min':"           << hwinfo.min_cpu_mhz    << ","
      << "'max':"           << hwinfo.max_cpu_mhz    << "}, "
-     << "'cache_sizes':["  << hwinfo.cache_sizes[0] << ","
+     << "'scopes':[";
+
+  for (int s = 0; s < hwinfo.num_scopes; s++) {
+    os << "{'"
+       << hwinfo.scopes[s].scope << "':"
+       << hwinfo.scopes[s].index
+       << "}";
+    if (s < hwinfo.num_scopes-1) {
+      os << ",";
+    }
+  }
+  os << "], ";
+
+  os << "'cache_sizes':["  << hwinfo.cache_sizes[0] << ","
                            << hwinfo.cache_sizes[1] << ","
                            << hwinfo.cache_sizes[2] << "], "
      << "'cache_ids':["    << hwinfo.cache_ids[0]   << ","
                            << hwinfo.cache_ids[1]   << ","
                            << hwinfo.cache_ids[2]   << "], "
      << "'mem_mbps':"      << hwinfo.max_shmem_mbps // << ", "
-//   << "'shared_mem_kb':" << hwinfo.shared_mem_kb
      << " }";
   return (*this << os.str());
 }
@@ -69,14 +81,14 @@ LocalityJSONPrinter & LocalityJSONPrinter::print_domain(
   *this << "{\n";
 
   *this << indent << "'scope'    : " << domain->scope << ",\n"
+        << indent << "'glob_idx' : " << domain->global_index << ",\n"
+        << indent << "'rel_idx'  : " << domain->relative_index << ",\n"
         << indent << "'level'    : " << domain->level << ",\n"
-        << indent << "'idx'      : " << domain->relative_index << ",\n"
         << indent << "'shmem'    : " << domain->shared_mem_kb << ",\n"
         << indent << "'cores'    : " << domain->num_cores << ",\n";
 
   if (static_cast<int>(domain->scope) <
       static_cast<int>(DART_LOCALITY_SCOPE_NODE)) {
-//  *this << indent << "'nodes'    : " << domain->num_nodes << ",\n";
     *this << indent << "'nodes'    : " << domain->num_domains << ",\n";
   }
 
@@ -85,17 +97,6 @@ LocalityJSONPrinter & LocalityJSONPrinter::print_domain(
       (static_cast<int>(domain->scope) ==
        static_cast<int>(DART_LOCALITY_SCOPE_MODULE))) {
     *this << indent << "'host'     : '"   << domain->host  << "',\n";
-  }
-
-  if (static_cast<int>(domain->scope) ==
-      static_cast<int>(DART_LOCALITY_SCOPE_NODE)) {
-//  *this << indent << "'node_id'  : " << domain->node_id << ",\n";
-    *this << indent << "'node_id'  : " << domain->relative_index << ",\n";
-  }
-  else if (static_cast<int>(domain->scope) ==
-      static_cast<int>(DART_LOCALITY_SCOPE_NUMA)) {
-//  *this << indent << "'numa_id'  : " << domain->hwinfo.numa_id << ",\n";
-    *this << indent << "'numa_id'  : " << domain->relative_index << ",\n";
   }
 
   if (domain->num_units > 0) {
@@ -126,17 +127,14 @@ LocalityJSONPrinter & LocalityJSONPrinter::print_domain(
                       << "'global_id':" << unit_gid
                       << " },\n"
             << indent << "'unit_loc' : { "
-                      << "'domain':'"   << uloc->domain.domain_tag << "', "
-                      << "'host':'"     << uloc->hwinfo.host       << "', "
-                      << "'hwinfo':"    << uloc->hwinfo
-                      << " }\n";
+                      << "'domain':'"   << uloc->domain_tag  << "', "
+                      << "'host':'"     << uloc->hwinfo.host << "',\n"
+            << indent << "               'hwinfo':" << uloc->hwinfo
+                      << " }";
     }
-  } else {
-//  *this << indent << "'hwinfo'   : " << domain->hwinfo << " ";
   }
 
   if (domain->num_domains > 0) {
-//  *this << ",\n";
     *this << indent << "'ndomains' : " << domain->num_domains << ",\n";
     *this << indent << "'domains'  : {\n";
 

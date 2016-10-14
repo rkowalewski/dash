@@ -111,9 +111,9 @@ dart_ret_t dart__base__unit_locality__create(
   }
   DART_LOG_TRACE("dart__base__unit_locality__create: unit %d of %"PRIu64": "
                  "sending %"PRIu64" bytes: "
-                 "host:'%s' domain:'%s' core_id:%d numa_id:%d nthreads:%d",
+                 "host:'%s' core_id:%d numa_id:%d nthreads:%d",
                  myid, nunits, nbytes,
-                 uloc->hwinfo.host, uloc->domain.domain_tag,
+                 uloc->hwinfo.host,
                  uloc->hwinfo.cpu_id, uloc->hwinfo.numa_id,
                  uloc->hwinfo.max_threads);
 
@@ -139,12 +139,12 @@ dart_ret_t dart__base__unit_locality__create(
   for (size_t u = 0; u < nunits; ++u) {
     dart_unit_locality_t * ulm_u = &mapping->unit_localities[u];
     DART_LOG_TRACE("dart__base__unit_locality__create: unit[%d]: "
-                   "unit:%d host:'%s' domain:'%s' "
+                   "unit:%d host:'%s' "
                    "num_cores:%d core_id:%d cpu_id:%d "
                    "num_numa:%d numa_id:%d "
                    "nthreads:%d",
                    (int)(u), ulm_u->unit,
-                   ulm_u->hwinfo.host, ulm_u->domain.domain_tag,
+                   ulm_u->hwinfo.host,
                    ulm_u->hwinfo.num_cores, ulm_u->hwinfo.core_id,
                    ulm_u->hwinfo.cpu_id,
                    ulm_u->hwinfo.num_numa, ulm_u->hwinfo.numa_id,
@@ -202,18 +202,18 @@ dart_ret_t dart__base__unit_locality__at(
  */
 dart_ret_t dart__base__unit_locality__local_unit_new(
   dart_team_t             team,
-  dart_unit_locality_t  * loc)
+  dart_unit_locality_t  * uloc)
 {
   DART_LOG_DEBUG("dart__base__unit_locality__local_unit_new() loc(%p)",
-                 (void *)loc);
-  if (loc == NULL) {
+                 (void *)uloc);
+  if (uloc == NULL) {
     DART_LOG_ERROR("dart__base__unit_locality__local_unit_new ! null");
     return DART_ERR_INVAL;
   }
   dart_unit_t myid = DART_UNDEFINED_UNIT_ID;
 
   DART_ASSERT_RETURNS(
-    dart__base__unit_locality__init(loc),
+    dart__base__unit_locality__init(uloc),
     DART_OK);
   DART_ASSERT_RETURNS(
     dart_team_myid(team, &myid),
@@ -222,14 +222,17 @@ dart_ret_t dart__base__unit_locality__local_unit_new(
   dart_hwinfo_t * hwinfo = malloc(sizeof(dart_hwinfo_t));
   DART_ASSERT_RETURNS(dart_hwinfo(hwinfo), DART_OK);
 
-  dart_domain_locality_t * dloc;
+#if 1 || __TODO__CLARIFY__
+  /* Is this call required? */
+  dart_domain_locality_t * tloc;
   DART_ASSERT_RETURNS(
-    dart_domain_team_locality(team, ".", &dloc),
+    dart_domain_team_locality(team, ".", &tloc),
     DART_OK);
+#endif
 
-  loc->unit   = myid;
-  loc->team   = team;
-  loc->hwinfo = *hwinfo;
+  uloc->unit   = myid;
+  uloc->team   = team;
+  uloc->hwinfo = *hwinfo;
 
 #if defined(DART__BASE__LOCALITY__SIMULATE_MICS)
   /* Assigns every second unit to a MIC host name.
@@ -237,12 +240,12 @@ dart_ret_t dart__base__unit_locality__local_unit_new(
    * for debugging.
    */
   if (myid % 3 == 1) {
-    strncat(loc->hwinfo.host, "-mic0", 5);
+    strncat(uloc->hwinfo.host, "-mic0", 5);
   }
 #endif
 
   DART_LOG_DEBUG("dart__base__unit_locality__local_unit_new > loc(%p)",
-                 (void *)loc);
+                 (void *)uloc);
   return DART_OK;
 }
 
@@ -263,6 +266,13 @@ dart_ret_t dart__base__unit_locality__init(
   loc->team = DART_UNDEFINED_TEAM_ID;
 
   dart_hwinfo_init(&loc->hwinfo);
+
+  /*
+  DART_ASSERT_RETURNS(
+    dart__base__locality__domain__init(&loc->domain),
+    DART_OK);
+  */
+  loc->domain_tag[0] = '\0';
 
   DART_LOG_TRACE("dart__base__unit_locality__init >");
   return DART_OK;

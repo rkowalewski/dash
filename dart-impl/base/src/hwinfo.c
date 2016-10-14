@@ -147,12 +147,9 @@ dart_ret_t dart_hwinfo(
       hw.min_cpu_mhz = info->clock;
       hw.max_cpu_mhz = info->clock;
     }
-//  if (hw.num_sockets < 0) {
-//    hw.num_sockets = topo->numSockets;
-//  }
-//  if (hw.num_numa < 0) {
-//    hw.num_numa    = hw.num_sockets;
-//  }
+    if (hw.num_numa < 0) {
+      hw.num_numa    = hw.num_sockets;
+    }
     if (hw.num_cores < 0) {
       hw.num_cores   = topo->numCoresPerSocket * hw.num_sockets;
     }
@@ -169,11 +166,12 @@ dart_ret_t dart_hwinfo(
   hwloc_topology_t topology;
   hwloc_topology_init(&topology);
   hwloc_topology_set_flags(topology,
-  /*                         HWLOC_TOPOLOGY_FLAG_WHOLE_SYSTEM */
 #if HWLOC_API_VERSION < 0x00020000
                              HWLOC_TOPOLOGY_FLAG_IO_DEVICES
                            | HWLOC_TOPOLOGY_FLAG_IO_BRIDGES
   /*                       | HWLOC_TOPOLOGY_FLAG_WHOLE_IO  */
+#else
+                             HWLOC_TOPOLOGY_FLAG_WHOLE_SYSTEM
 #endif
                           );
   hwloc_topology_load(topology);
@@ -268,7 +266,7 @@ dart_ret_t dart_hwinfo(
       else if (obj->type == HWLOC_OBJ_NODE) {
         hw.numa_id = obj->logical_index;
       } else if (obj->type ==
-#if HWLOC_API_VERSION > 0x00010700
+#if HWLOC_API_VERSION > 0x00011000
                  HWLOC_OBJ_PACKAGE
 #else
                  HWLOC_OBJ_SOCKET
@@ -290,20 +288,13 @@ dart_ret_t dart_hwinfo(
       }
     }
   }
-//if (hw.num_sockets < 0) {
-//  // Resolve number of sockets:
-//  int depth = hwloc_get_type_depth(topology, HWLOC_OBJ_SOCKET);
-//  if (depth != HWLOC_TYPE_DEPTH_UNKNOWN) {
-//    hw.num_sockets = hwloc_get_nbobjs_by_depth(topology, depth);
-//  }
-//}
-//if (hw.num_numa < 0) {
-//  int n_numa_nodes = hwloc_get_nbobjs_by_type(
-//                       topology, DART__HWLOC_OBJ_NUMANODE);
-//  if (n_numa_nodes > 0) {
-//    hw.num_numa = n_numa_nodes;
-//  }
-//}
+  if (hw.num_numa < 0) {
+    int n_numa_nodes = hwloc_get_nbobjs_by_type(
+                         topology, DART__HWLOC_OBJ_NUMANODE);
+    if (n_numa_nodes > 0) {
+      hw.num_numa = n_numa_nodes;
+    }
+  }
   if (hw.num_cores < 0) {
     int n_cores = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
     if (n_cores > 0) {
@@ -335,11 +326,10 @@ dart_ret_t dart_hwinfo(
 
   hwloc_topology_destroy(topology);
   DART_LOG_TRACE("dart_hwinfo: hwloc: "
-//               "num_sockets:%d num_numa:%d "
-                 "numa_id:%d num_cores:%d core_id:%d cpu_id:d%",
-//               hw.num_sockets, hw.num_numa,
-                 hw.numa_id, hw.num_cores,
-                 hw.core_id, hw.cpu_id);
+                 "num_numa:%d numa_id:%d "
+                 "num_cores:%d core_id:%d cpu_id:d%",
+                 hw.num_numa, hw.numa_id,
+                 hw.num_cores, hw.core_id, hw.cpu_id);
 #endif /* DART_ENABLE_HWLOC */
 
 #ifdef DART_ENABLE_PAPI
@@ -347,23 +337,20 @@ dart_ret_t dart_hwinfo(
 
   const PAPI_hw_info_t * papi_hwinfo = NULL;
   if (dart__base__locality__papi_init(&papi_hwinfo) == DART_OK) {
-//  if (hw.num_sockets < 0) { hw.num_sockets = papi_hwinfo->sockets; }
-//  if (hw.num_numa    < 0) { hw.num_numa    = papi_hwinfo->nnodes;  }
-    int num_sockets = papi_hwinfo->sockets;
-    if (hw.num_cores   < 0) {
+    if (hw.num_numa < 0) {
+      hw.num_numa    = papi_hwinfo->nnodes;
+    }
+    if (hw.num_cores < 0) {
+      int num_sockets      = papi_hwinfo->sockets;
       int cores_per_socket = papi_hwinfo->cores;
-//    hw.num_cores   = hw.num_sockets * cores_per_socket;
       hw.num_cores   = num_sockets * cores_per_socket;
     }
     if (hw.min_cpu_mhz < 0 || hw.max_cpu_mhz < 0) {
       hw.min_cpu_mhz = papi_hwinfo->cpu_min_mhz;
       hw.max_cpu_mhz = papi_hwinfo->cpu_max_mhz;
     }
-    DART_LOG_TRACE("dart_hwinfo: PAPI: "
-//                 "num_sockets:%d num_numa:%d "
-                   "num_cores:%d",
-//                 hw.num_sockets, hw.num_numa,
-                   hw.num_cores);
+    DART_LOG_TRACE("dart_hwinfo: PAPI: num_numa:%d num_cores:%d",
+                   hw.num_numa, hw.num_cores);
   }
 #endif /* DART_ENABLE_PAPI */
 
@@ -384,7 +371,6 @@ dart_ret_t dart_hwinfo(
    */
   DART_LOG_TRACE("dart_hwinfo: MIC architecture");
 
-//if (hw.num_sockets < 0) { hw.num_sockets =  1; }
   if (hw.num_numa    < 0) { hw.num_numa    =  1; }
   if (hw.num_cores   < 0) { hw.num_cores   = 60; }
   if (hw.min_cpu_mhz < 0 || hw.max_cpu_mhz < 0) {
@@ -430,17 +416,12 @@ dart_ret_t dart_hwinfo(
   if (hw.numa_id < 0 && hw.cpu_id >= 0) {
     hw.numa_id = numa_node_of_cpu(hw.cpu_id);
   }
-//DART_LOG_TRACE("dart_hwinfo: numalib: "
-//               "num_sockets:%d num_numa:%d numa_id:%d num_cores:%d",
-//               hw.num_sockets, hw.num_numa, hw.numa_id, hw.num_cores);
 #endif
 
   DART_LOG_TRACE("dart_hwinfo: finished: "
-//               "num_sockets:%d num_numa:%d "
-                 "numa_id:%d cpu_id:%d, num_cores:%d "
+                 "num_numa:%d numa_id:%d cpu_id:%d, num_cores:%d "
                  "min_threads:%d max_threads:%d",
-//               hw.num_sockets, hw.num_numa,
-                 hw.numa_id, hw.cpu_id, hw.num_cores,
+                 hw.num_numa, hw.numa_id, hw.cpu_id, hw.num_cores,
                  hw.min_threads, hw.max_threads);
 
   *hwinfo = hw;

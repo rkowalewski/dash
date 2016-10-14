@@ -54,6 +54,7 @@ public:
     Unit      = DART_LOCALITY_SCOPE_UNIT,
     Package   = DART_LOCALITY_SCOPE_PACKAGE,
     Uncore    = DART_LOCALITY_SCOPE_UNCORE,
+    Cache     = DART_LOCALITY_SCOPE_CACHE,
     Core      = DART_LOCALITY_SCOPE_CORE,
     CPU       = DART_LOCALITY_SCOPE_CPU
   }

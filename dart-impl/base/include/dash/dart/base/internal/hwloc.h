@@ -19,7 +19,7 @@ static inline dart_locality_scope_t dart__base__hwloc__obj_type_to_dart_scope(
     case HWLOC_OBJ_MACHINE        : return DART_LOCALITY_SCOPE_NODE;
     case DART__HWLOC_OBJ_NUMANODE : return DART_LOCALITY_SCOPE_NUMA;
     case HWLOC_OBJ_CORE           : return DART_LOCALITY_SCOPE_CORE;
-#if HWLOC_API_VERSION > 0x00010700
+#if HWLOC_API_VERSION > 0x00011000
     case HWLOC_OBJ_PACKAGE        : return DART_LOCALITY_SCOPE_PACKAGE;
 #else
     case HWLOC_OBJ_SOCKET         : return DART_LOCALITY_SCOPE_PACKAGE;

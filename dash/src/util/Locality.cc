@@ -40,17 +40,15 @@ std::ostream & operator<<(
 {
   std::ostringstream ss;
   ss << "dart_unit_locality_t("
-     <<   "unit:"      << unit_loc.unit               << " "
-//   <<   "domain:'"   << unit_loc.domain_tag         << "' "
-     <<   "domain:'"   << unit_loc.domain.domain_tag  << "' "
-//   <<   "host:'"     << unit_loc.host               << "' "
-     <<   "host:'"     << unit_loc.hwinfo.host        << "' "
-     <<   "numa_id:'"  << unit_loc.hwinfo.numa_id     << "' "
-     <<   "core_id:"   << unit_loc.hwinfo.cpu_id      << " "
-     <<   "n_cores:"   << unit_loc.hwinfo.num_cores   << " "
-     <<   "cpu_mhz:"   << unit_loc.hwinfo.min_cpu_mhz << ".."
-                       << unit_loc.hwinfo.max_cpu_mhz << " "
-     <<   "threads:"   << unit_loc.hwinfo.max_threads << " "
+     <<   "unit:"      << unit_loc.unit                << " "
+     <<   "domain:'"   << unit_loc.domain_tag          << "' "
+     <<   "host:'"     << unit_loc.hwinfo.host         << "' "
+     <<   "numa_id:'"  << unit_loc.hwinfo.numa_id      << "' "
+     <<   "core_id:"   << unit_loc.hwinfo.cpu_id       << " "
+     <<   "n_cores:"   << unit_loc.hwinfo.num_cores    << " "
+     <<   "cpu_mhz:"   << unit_loc.hwinfo.min_cpu_mhz  << ".."
+                       << unit_loc.hwinfo.max_cpu_mhz  << " "
+     <<   "threads:"   << unit_loc.hwinfo.max_threads  << " "
      <<   "mem_mbps:"  << unit_loc.hwinfo.max_shmem_mbps
      << ")";
   return operator<<(os, ss.str());
@@ -75,7 +73,11 @@ std::ostream & operator<<(
     case DART_LOCALITY_SCOPE_MODULE:  os << "MODULE";    break;
     case DART_LOCALITY_SCOPE_NUMA:    os << "NUMA";      break;
     case DART_LOCALITY_SCOPE_UNIT:    os << "UNIT";      break;
+    case DART_LOCALITY_SCOPE_PACKAGE: os << "PACKAGE";   break;
+    case DART_LOCALITY_SCOPE_UNCORE:  os << "UNCORE";    break;
+    case DART_LOCALITY_SCOPE_CACHE:   os << "CACHE";     break;
     case DART_LOCALITY_SCOPE_CORE:    os << "CORE";      break;
+    case DART_LOCALITY_SCOPE_CPU:     os << "CPU";       break;
     default:                          os << "UNDEFINED"; break;
   }
   return os;
@@ -101,17 +103,17 @@ void Locality::init()
                "for unit " << dash::myid());
   }
   if (dart_domain_team_locality(
-        DART_TEAM_ALL, _unit_loc->domain.domain_tag, &_team_loc)
+        DART_TEAM_ALL, _unit_loc->domain_tag, &_team_loc)
       != DART_OK) {
     DASH_THROW(dash::exception::RuntimeError,
                "Locality::init(): dart_domain_team_locality failed " <<
-               "for domain '" << _unit_loc->domain.domain_tag << "'");
+               "for domain '" << _unit_loc->domain_tag << "'");
   }
   DASH_LOG_TRACE_VAR("dash::util::Locality::init", _team_loc);
   if (_team_loc == nullptr) {
     DASH_THROW(dash::exception::RuntimeError,
                "Locality::init(): dart_domain_team_locality returned 0 " <<
-               "for domain '" << _unit_loc->domain.domain_tag << "'");
+               "for domain '" << _unit_loc->domain_tag << "'");
   }
   DASH_LOG_DEBUG("dash::util::Locality::init >");
 }
@@ -190,11 +192,9 @@ static void print_domain(
                                        << "in team " << uloc->team << ", "
                                        << "global: " << unit_gid   << ")"
                       << '\n';
-//    ostr << uindent << "domain:    " << uloc->domain_tag << '\n';
-      ostr << uindent << "domain:    " << uloc->domain.domain_tag << '\n';
-//    ostr << uindent << "host:      " << uloc->host       << '\n';
-      ostr << uindent << "host:      " << uloc->hwinfo.host       << '\n';
-      ostr << uindent << "hwinfo:    " << uloc->hwinfo            << '\n';
+      ostr << uindent << "domain:    " << uloc->domain_tag  << '\n';
+      ostr << uindent << "host:      " << uloc->hwinfo.host << '\n';
+      ostr << uindent << "hwinfo:    " << uloc->hwinfo      << '\n';
     }
   } else {
 //  ostr << indent << "hwinfo:  " << domain->hwinfo << '\n';

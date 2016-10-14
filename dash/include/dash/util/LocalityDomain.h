@@ -2,7 +2,6 @@
 #define DASH__UTIL__LOCALITY_DOMAIN_H__INCLUDED
 
 #include <dash/util/Locality.h>
-// #include <dash/util/UnitLocality.h>
 
 #include <dash/dart/if/dart_types.h>
 #include <dash/dart/if/dart_locality.h>
@@ -32,6 +31,13 @@ namespace util {
  * dash::util::TeamLocality     team_locality(dash::Team::All());
  * dash::util::LocalityDomain & domain = team_locality.domain();
  *
+ * // Leader unit in second subdomain:
+ * dart_unit_t leader_id = domain[1].leader_unit();
+ *
+ * // Unit locality data of leader unit:
+ * dash::util::UnitLocality & leader_loc = domain[1].unit_locality(leader_id);
+ * auto leader_ncores = leader_loc.num_cores();
+ *
  * domain.split_groups(dash::util::Locality::Scope::Module);
  *
  * for (auto part : domain.groups()) {
@@ -44,7 +50,6 @@ class LocalityDomain
 private:
   typedef LocalityDomain                           self_t;
   typedef dash::util::Locality::Scope             Scope_t;
-//typedef dash::util::UnitLocality         UnitLocality_t;
 
 private:
   /**
@@ -141,15 +146,12 @@ private:
 
 public:
 
-  inline LocalityDomain()
-  : _domain(nullptr),
-    _subdomains(nullptr)
-  { }
-
-  explicit LocalityDomain(
+  LocalityDomain(
     const dart_domain_locality_t & domain);
 
-  explicit LocalityDomain(
+  LocalityDomain();
+
+  LocalityDomain(
     dart_domain_locality_t * domain);
 
   ~LocalityDomain();
@@ -349,12 +351,27 @@ public:
     return _unit_ids;
   }
 
+  /**
+   * ID of leader unit in the locality domain.
+   */
+  inline dart_unit_t leader_unit() const
+  {
+    // TODO: Optimize
+
+    // Unit 0 is default leader if contained in the domain:
+    if (std::find(_unit_ids.begin(), _unit_ids.end(), 0)
+        != _unit_ids.end()) {
+      return 0;
+    }
+    return _unit_ids.front();
+  }
+
 //inline const dart_hwinfo_t & hwinfo() const
 //{
 //  DASH_ASSERT(_domain != nullptr);
 //  return _domain->hwinfo;
 //}
-
+//
 //inline dart_hwinfo_t & hwinfo()
 //{
 //  DASH_ASSERT(_domain != nullptr);
