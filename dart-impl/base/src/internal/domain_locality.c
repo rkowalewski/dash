@@ -857,6 +857,14 @@ dart_ret_t dart__base__locality__domain__create_module_subdomains(
                                   subdomain->num_units * sizeof(dart_unit_t));
     DART_ASSERT(NULL != subdomain->unit_ids);
 
+    /* Number of units in subdomain is set at this point.
+     * Below module level, a module subdomain's number of affine cores is:
+     */
+    int balanced_cores_per_subdomain = module_domain->num_cores /
+                                       module_domain->num_units;
+    subdomain->num_cores             = balanced_cores_per_subdomain *
+                                       subdomain->num_units;
+
     if (module_gid_idx <= 1) {
       /* Reached CORE scope: */
       dart_unit_t unit_id = subdomain->unit_ids[0];
@@ -874,6 +882,8 @@ dart_ret_t dart__base__locality__domain__create_module_subdomains(
 
       strncpy(unit_loc->domain_tag, subdomain->domain_tag,
               DART_LOCALITY_DOMAIN_TAG_MAX_SIZE);
+      unit_loc->hwinfo.num_cores = subdomain->num_cores;
+
     } else {
       /* Recurse to next scope level in the module domain: */
       DART_ASSERT_RETURNS(
@@ -882,14 +892,6 @@ dart_ret_t dart__base__locality__domain__create_module_subdomains(
           module_scope_level+1),
         DART_OK);
     }
-
-    /* Number of units in subdomain is set at this point.
-     * Below module level, a module subdomain's number of affine cores is:
-     */
-    int balanced_cores_per_subdomain = module_domain->num_cores /
-                                       module_domain->num_units;
-    subdomain->num_cores             = balanced_cores_per_subdomain *
-                                       subdomain->num_units;
   }
 
 // /* Units of subdomains are set at this point.
