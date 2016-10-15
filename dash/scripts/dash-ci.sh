@@ -27,24 +27,12 @@ run_ci()
   $CMD_DEPLOY "--b=$BUILD_TYPE" -f "--i=$DEPLOY_PATH" >> $DEPLOY_PATH/build.log 2>&1
 
   if [ "$?" = "0" ]; then
-      echo "[     OK ]"
-
-### Test DASH using DART SHMEM backend:
-#   echo -n "[ TEST   ] Running tests on build $BUILD_TYPE (SHMEM) ..."
-#   $CMD_TEST shmem $DEPLOY_PATH/bin $DEPLOY_PATH/test_shmem.log > /dev/null 2>&1
-#   if [ "$?" = "0" ]; then
-#     echo " OK"
-#   else
-#     echo " FAILED"
-#     FAILED=true
-#   fi
-#   echo "[ <!>    ] Review the test log:"
-#   echo "[ <!>    ]   $DEPLOY_PATH/test_shmem.log"
+    echo "[     OK ]"
 
 ### Test DASH using DART MPI backend:
     echo "[ TEST   ] Running tests on build $BUILD_TYPE (MPI)   ..."
-    $CMD_TEST mpi   $DEPLOY_PATH/bin $DEPLOY_PATH/test_mpi.log > /dev/null 2>&1
     echo "[ >> LOG ] $DEPLOY_PATH/test_mpi.log"
+    $CMD_TEST mpi   $DEPLOY_PATH/bin $DEPLOY_PATH/test_mpi.log > /dev/null 2>&1
     if [ "$?" = "0" ]; then
       echo "[     OK ]"
     else
