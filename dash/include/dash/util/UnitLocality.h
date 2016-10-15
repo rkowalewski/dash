@@ -115,6 +115,33 @@ public:
     return _node_domain;
   }
 
+  inline dash::util::LocalityDomain parent()
+  {
+    return dash::util::LocalityDomain(*_unit_domain->parent);
+  }
+
+  inline dash::util::LocalityDomain parent_in_scope(
+    dash::util::Locality::Scope scope)
+  {
+    if (scope == dash::util::Locality::Scope::Node) {
+      return node_domain();
+    }
+
+    dart_domain_locality_t * parent_domain = nullptr;
+    for (int rlevel = _unit_locality->hwinfo.num_scopes;
+         rlevel >= 0;
+         rlevel--) {
+      parent_domain = parent_domain->parent;
+      if (static_cast<int>(_unit_locality->hwinfo.scopes[rlevel].scope) <=
+          static_cast<int>(scope)) {
+        return dash::util::LocalityDomain(*parent_domain);
+      }
+    }
+    DASH_THROW(
+      dash::exception::InvalidArgument,
+      "Could not find parent domain of unit in scope " << scope);
+  }
+
   inline std::string domain_tag() const
   {
     DASH_ASSERT(nullptr != _unit_locality);
@@ -177,13 +204,6 @@ public:
   inline int numa_id() const
   {
     return (nullptr == _unit_locality ? -1 : _unit_locality->hwinfo.numa_id);
-#if 0
-    dart_domain_locality_t * dom = &_unit_locality->domain;
-    while (dom->scope >= DART_LOCALITY_SCOPE_NUMA) {
-      dom = dom->parent;
-    }
-    return dom->relative_index;
-#endif
   }
 
   inline int cpu_id() const

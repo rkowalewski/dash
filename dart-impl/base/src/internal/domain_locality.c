@@ -50,20 +50,20 @@ dart_ret_t dart__base__locality__domain__init(
     DART_LOG_ERROR("dart__base__locality__domain_locality_init ! null");
     return DART_ERR_INVAL;
   }
-  loc->domain_tag[0]  = '\0';
-  loc->host[0]        = '\0';
-  loc->scope          = DART_LOCALITY_SCOPE_UNDEFINED;
-  loc->global_index   = -1;
-  loc->team           = DART_TEAM_NULL;
-  loc->level          = 0;
-  loc->relative_index = 0;
-  loc->parent         = NULL;
-  loc->num_domains    = 0;
-  loc->domains        = NULL;
-  loc->num_nodes      = -1;
-  loc->num_units      = -1;
-  loc->num_cores      = -1;
-  loc->shared_mem_kb  = -1;
+  loc->domain_tag[0]    = '\0';
+  loc->host[0]          = '\0';
+  loc->scope            = DART_LOCALITY_SCOPE_UNDEFINED;
+  loc->global_index     = -1;
+  loc->team             = DART_TEAM_NULL;
+  loc->level            = 0;
+  loc->relative_index   = 0;
+  loc->parent           = NULL;
+  loc->num_domains      = 0;
+  loc->domains          = NULL;
+  loc->num_nodes        = -1;
+  loc->num_units        = -1;
+  loc->num_cores        = -1;
+  loc->shared_mem_bytes = -1;
 
   return DART_OK;
 }
@@ -697,7 +697,8 @@ dart_ret_t dart__base__locality__domain__create_module_subdomains(
     "dart__base__locality__domain__create_module_subdomains", "%d",
     module_scopes, num_scopes);
 
-  dart_locality_scope_t module_locality_scope = module_scopes[module_gid_idx];
+  dart_locality_scope_t module_locality_scope
+    = module_scopes[module_gid_idx];
 
   DART_LOG_TRACE("dart__base__locality__domain__create_module_subdomains: "
                  "module_gid_idx:%d "

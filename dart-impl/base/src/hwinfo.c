@@ -92,8 +92,8 @@ dart_ret_t dart_hwinfo_init(
   hw->cache_line_sizes[1] = -1;
   hw->cache_line_sizes[2] = -1;
   hw->max_shmem_mbps      = -1;
-  hw->system_memory       = -1;
-  hw->numa_memory         = -1;
+  hw->system_memory_bytes = -1;
+  hw->numa_memory_bytes   = -1;
   hw->num_scopes          = -1;
 
   dart_locality_scope_pos_t undef_scope;
@@ -308,19 +308,19 @@ dart_ret_t dart_hwinfo(
     hw.max_threads = n_cpus / hw.num_cores;
   }
 
-  if(hw.system_memory < 0) {
+  if(hw.system_memory_bytes < 0) {
     hwloc_obj_t obj;
     obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_MACHINE, 0);
-    hw.system_memory = obj->memory.total_memory / BYTES_PER_MB;
+    hw.system_memory_bytes = obj->memory.total_memory / BYTES_PER_MB;
   }
-  if(hw.numa_memory < 0) {
+  if(hw.numa_memory_bytes < 0) {
     hwloc_obj_t obj;
     obj = hwloc_get_obj_by_type(topology, DART__HWLOC_OBJ_NUMANODE, 0);
     if(obj != NULL) {
-      hw.numa_memory = obj->memory.total_memory / BYTES_PER_MB;
+      hw.numa_memory_bytes = obj->memory.total_memory / BYTES_PER_MB;
     } else {
       /* No NUMA domain: */
-      hw.numa_memory = hw.system_memory;
+      hw.numa_memory_bytes = hw.system_memory_bytes;
     }
   }
 
@@ -398,11 +398,11 @@ dart_ret_t dart_hwinfo(
       hw.num_cores);
   }
 
-	if(hw.system_memory < 0) {
+	if(hw.system_memory_bytes < 0) {
 	  long pages     = sysconf(_SC_AVPHYS_PAGES);
 	  long page_size = sysconf(_SC_PAGE_SIZE);
     if (pages > 0 && page_size > 0) {
-      hw.system_memory = (int) ((pages * page_size) / BYTES_PER_MB);
+      hw.system_memory_bytes = (int) ((pages * page_size) / BYTES_PER_MB);
     }
   }
 

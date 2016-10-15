@@ -171,9 +171,8 @@ TEST_F(LocalRangeTest, LargeArray)
   auto num_units      = dash::Team::All().size();
   int  units_per_node = dash::util::Locality::NumNodes();
 
-  long mb_to_byte     = 1024 * 1024;
   long mem_host       = dash::util::UnitLocality()
-                          .node_domain().shared_mem_kb() * 1024;
+                          .node_domain().shared_mem_bytes();
   long mem_total;
   long max_index;
   if (mem_host > 0) {

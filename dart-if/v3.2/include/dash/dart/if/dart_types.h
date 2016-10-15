@@ -202,11 +202,11 @@ typedef struct
     /** Maximum local shared memory bandwidth in MB/s. */
     int   max_shmem_mbps;
 
-    /** Maximum allocatable memory per node in MB */
-    int   system_memory;
+    /** Maximum allocatable memory per node in bytes */
+    int   system_memory_bytes;
 
-    /** Maximum memory per numa node in MB. */
-    int   numa_memory;
+    /** Maximum memory per numa node in bytes. */
+    int   numa_memory_bytes;
 
     /** Ancestor locality scopes in bottom-up hierarchical order. */
     dart_locality_scope_pos_t scopes[DART_LOCALITY_MAX_DOMAIN_SCOPES];
@@ -436,7 +436,7 @@ struct dart_domain_locality_s
 
     int                             num_cores;
 
-    int                             shared_mem_kb;
+    int                             shared_mem_bytes;
 };
 struct dart_domain_locality_s;
 typedef struct dart_domain_locality_s
@@ -462,8 +462,6 @@ typedef struct {
 
     /** Hardware specification of the unit's affinity. */
     dart_hwinfo_t            hwinfo;
-
-    dart_domain_locality_t  _domain;
 
     char                     domain_tag[DART_LOCALITY_DOMAIN_TAG_MAX_SIZE];
 }

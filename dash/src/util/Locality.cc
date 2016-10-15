@@ -125,7 +125,6 @@ std::ostream & operator<<(
   os << "dart_hwinfo_t("
      << "numa_id:"     << hwinfo.numa_id     << " "
      << "num_numa:"    << hwinfo.num_numa    << " "
-//   << "num_sockets:" << hwinfo.num_sockets << " "
      << "num_cores:"   << hwinfo.num_cores   << " "
      << "cpu_id:"      << hwinfo.cpu_id      << " "
      << "threads("     << hwinfo.min_threads << "..."
@@ -156,13 +155,7 @@ static void print_domain(
 
   if (static_cast<int>(domain->scope) <
       static_cast<int>(DART_LOCALITY_SCOPE_NODE)) {
-//  ostr << indent << "nodes:   " << domain->num_nodes << '\n';
     ostr << indent << "nodes:   " << domain->num_domains << '\n';
-  }
-
-  if (static_cast<int>(domain->scope) >=
-      static_cast<int>(DART_LOCALITY_SCOPE_NUMA)) {
-//  ostr << indent << "NUMA id: " << domain->hwinfo.numa_id  << '\n';
   }
 
   if (domain->num_units > 0) {
@@ -196,8 +189,6 @@ static void print_domain(
       ostr << uindent << "host:      " << uloc->hwinfo.host << '\n';
       ostr << uindent << "hwinfo:    " << uloc->hwinfo      << '\n';
     }
-  } else {
-//  ostr << indent << "hwinfo:  " << domain->hwinfo << '\n';
   }
 
   if (domain->num_domains > 0) {
