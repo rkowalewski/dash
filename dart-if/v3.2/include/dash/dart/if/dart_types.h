@@ -432,10 +432,15 @@ struct dart_domain_locality_s
     /** IDs of units in the domain. */
     dart_unit_t                   * unit_ids;
 
+    /* The number of compute nodes in the domain. */
     int                             num_nodes;
-
+    /* Number of cores in the domain. Cores may be heterogeneous unless
+     * `is_symmetric` is different from 0. */
     int                             num_cores;
 
+    /* The minimum size of the physical or logical shared memory
+     * accessible by all units in the domain.
+     */
     int                             shared_mem_bytes;
 };
 struct dart_domain_locality_s;

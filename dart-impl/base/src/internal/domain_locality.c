@@ -496,6 +496,7 @@ dart_ret_t dart__base__locality__domain__create_subdomains(
                  "num_nodes:%d", num_nodes);
 
   /* Child domains of root are at node level: */
+  global_domain->num_cores      = 0;
   global_domain->num_domains    = num_nodes;
   global_domain->scope          = DART_LOCALITY_SCOPE_GLOBAL;
   global_domain->level          = 0;
@@ -529,7 +530,8 @@ dart_ret_t dart__base__locality__domain__create_subdomains(
         node_domain, host_topology, unit_mapping),
       DART_OK);
 
-    /* Bottom-up recursion operations here */
+    /* Bottom-up recursion operations: */
+    global_domain->num_cores += node_domain->num_cores;
   }
   return DART_OK;
 }
@@ -563,6 +565,7 @@ dart_ret_t dart__base__locality__domain__create_node_subdomains(
   node_domain->domains     = malloc(num_modules *
                                     sizeof(dart_domain_locality_t));
 
+  int sum_module_cores = 0;
   for (int m = 0; m < num_modules; m++) {
     dart_domain_locality_t * module_domain = &node_domain->domains[m];
     dart__base__locality__domain__init(module_domain);
@@ -609,7 +612,10 @@ dart_ret_t dart__base__locality__domain__create_node_subdomains(
       DART_OK);
 
     /* Bottom-up recursion operations here */
+
+    sum_module_cores += module_domain->num_cores;
   }
+  node_domain->num_cores = sum_module_cores;
 
   DART_LOG_TRACE("dart__base__locality__domain__create_node_subdomains >");
   return DART_OK;
@@ -683,10 +689,14 @@ dart_ret_t dart__base__locality__domain__create_module_subdomains(
     dart__base__unit_locality__at(
       unit_mapping, module_domain->unit_ids[0], &module_leader_unit_loc),
     DART_OK);
-  num_scopes           = module_leader_unit_loc->hwinfo.num_scopes;
-  int num_module_cores = module_leader_unit_loc->hwinfo.num_cores;
+  num_scopes = module_leader_unit_loc->hwinfo.num_scopes;
 
-  module_domain->num_cores = num_module_cores;
+  if (module_scope_level == 0) {
+    /* At module level, get number of cores from leader unit: */
+    int num_module_cores     = module_leader_unit_loc->hwinfo.num_cores;
+    module_domain->num_cores = num_module_cores;
+  } else {
+  }
 
   int module_gid_idx = num_scopes - module_scope_level - 1;
 
@@ -773,6 +783,7 @@ dart_ret_t dart__base__locality__domain__create_module_subdomains(
                  num_module_units);
 
   for (int sd = 0; sd < module_domain->num_domains; sd++) {
+
     DART_LOG_TRACE("dart__base__locality__domain__create_module_subdomains: "
                    "module subdomain index:%d / num_domains:%d",
                    sd, module_domain->num_domains);
@@ -871,7 +882,30 @@ dart_ret_t dart__base__locality__domain__create_module_subdomains(
           module_scope_level+1),
         DART_OK);
     }
+
+    /* Number of units in subdomain is set at this point.
+     * Below module level, a module subdomain's number of affine cores is:
+     */
+    int balanced_cores_per_subdomain = module_domain->num_cores /
+                                       module_domain->num_units;
+    subdomain->num_cores             = balanced_cores_per_subdomain *
+                                       subdomain->num_units;
   }
+
+// /* Units of subdomains are set at this point.
+//  * Iterate subdomains a second time to resolve number of cores per unit
+//  * in every subdomains: */
+// int pd_num_units = module_domain->num_units;
+// int pd_num_cores = module_domain->num_cores;
+// DART_LOG_TRACE("dart__base__locality__domain__create_module_subdomains "
+//                "module_domain.num_units:%d module_domain.num_cores:%d",
+//                pd_num_units, pd_num_cores);
+//
+// for (int sd = 0; sd < module_domain->num_domains; sd++) {
+//   dart_domain_locality_t * subdomain = &module_domain->domains[sd];
+//   int sd_num_units     = subdomain->num_units;
+//   subdomain->num_cores = pd_num_cores / sd_num_units;
+// }
 
   DART_LOG_TRACE("dart__base__locality__domain__create_module_subdomains >");
   return DART_OK;
