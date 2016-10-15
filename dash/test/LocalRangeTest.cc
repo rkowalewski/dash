@@ -1,10 +1,21 @@
+
 #include <libdash.h>
 #include <gtest/gtest.h>
 #include "TestBase.h"
 #include "LocalRangeTest.h"
 
+
 TEST_F(LocalRangeTest, ArrayBlockcyclic)
 {
+  if (dash::myid() == 0) {
+    dart_domain_locality_t * glob_loc_dom;
+    dart_domain_team_locality(
+      DART_TEAM_ALL, ".", &glob_loc_dom);
+    std::cout << (dash::util::LocalityJSONPrinter() << *glob_loc_dom).str()
+              << std::endl;
+  }
+  dash::barrier();
+
   const size_t blocksize        = 3;
   const size_t num_blocks_local = 2;
   const size_t num_elem_local   = num_blocks_local * blocksize;
