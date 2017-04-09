@@ -26,17 +26,23 @@ namespace dash {
 template<
   typename Key,
   typename Mapped,
+  typename HashUnit,
   typename Hash,
   typename Pred,
-  typename Alloc >
+  typename Alloc,
+  typename RehashPolicy
+>
 class UnorderedMap;
 
 template<
   typename Key,
   typename Mapped,
+  typename HashUnit,
   typename Hash,
   typename Pred,
-  typename Alloc >
+  typename Alloc,
+  typename RehashPolicy
+>
 class UnorderedMapLocalIter
 : public std::iterator<
            std::random_access_iterator_tag,
@@ -45,16 +51,16 @@ class UnorderedMapLocalIter
            std::pair<const Key, Mapped> *,
            std::pair<const Key, Mapped> &>
 {
-  template<typename K_, typename M_, typename H_, typename P_, typename A_>
+  template<typename K_, typename M_, typename HU_, typename H_, typename P_, typename A_, typename R_>
   friend std::ostream & dash::operator<<(
     std::ostream & os,
-    const dash::UnorderedMapLocalIter<K_, M_, H_, P_, A_> & it);
+    const dash::UnorderedMapLocalIter<K_, M_, HU_, H_, P_, A_, R_> & it);
 
 private:
-  typedef UnorderedMapLocalIter<Key, Mapped, Hash, Pred, Alloc>
+  typedef UnorderedMapLocalIter<Key, Mapped, HashUnit, Hash, Pred, Alloc, RehashPolicy>
     self_t;
 
-  typedef UnorderedMap<Key, Mapped, Hash, Pred, Alloc>
+  typedef UnorderedMap<Key, Mapped, HashUnit, Hash, Pred, Alloc, RehashPolicy>
     map_t;
 
 public:
@@ -95,6 +101,7 @@ public:
     _idx(local_position),
     _myid(dash::Team::GlobalUnitID())
   {
+    reset_idx_bucket_phase();
     DASH_LOG_TRACE("UnorderedMapLocalIter(map,lpos)()");
     DASH_LOG_TRACE_VAR("UnorderedMapLocalIter(map,lpos)", _idx);
     DASH_LOG_TRACE("UnorderedMapLocalIter(map,lpos) >");
@@ -168,7 +175,7 @@ public:
     //       space, not local memory space. Undefined behaviour if local
     //       memory space has gaps, e.g. after erasing elements.
     local_iter_t l_it = _map->globmem().lbegin();
-    return pointer(l_it + static_cast<index_type>(_idx));
+    return pointer(l_it + static_cast<index_type>(gmem_idx_at_lidx()));
   }
 
   /**
@@ -184,7 +191,7 @@ public:
     //       space, not local memory space. Undefined behaviour if local
     //       memory space has gaps, e.g. after erasing elements.
     local_iter_t l_it = _map->globmem().lbegin();
-    return *pointer(l_it + static_cast<index_type>(_idx));
+    return *pointer(l_it + static_cast<index_type>(gmem_idx_at_lidx()));
   }
 
   /**
@@ -198,7 +205,7 @@ public:
     DASH_LOG_TRACE_VAR("UnorderedMapLocalIter.dart_gptr()", _idx);
     dart_gptr_t dart_gptr = DART_GPTR_NULL;
     if (!_is_nullptr) {
-      dart_gptr = _map->globmem().at(_myid, _idx).dart_gptr();
+      dart_gptr = _map->globmem().at(_myid, gmem_idx_at_lidx()).dart_gptr();
     }
     DASH_LOG_TRACE_VAR("UnorderedMapLocalIter.dart_gptr >", dart_gptr);
     return dart_gptr;
@@ -270,16 +277,16 @@ public:
     return result;
   }
 
-  template<typename K_, typename M_, typename H_, typename P_, typename A_>
+  template<typename K_, typename M_, typename HU_, typename H_, typename P_, typename A_, typename R_>
   inline bool operator==(
-    const UnorderedMapLocalIter<K_, M_, H_, P_, A_> & other) const
+    const UnorderedMapLocalIter<K_, M_, HU_, H_, P_, A_, R_> & other) const
   {
     return (this == std::addressof(other) || _idx == other._idx);
   }
 
-  template<typename K_, typename M_, typename H_, typename P_, typename A_>
+  template<typename K_, typename M_, typename HU_, typename H_, typename P_, typename A_, typename R_>
   inline bool operator!=(
-    const UnorderedMapLocalIter<K_, M_, H_, P_, A_> & other) const
+    const UnorderedMapLocalIter<K_, M_, HU_, H_, P_, A_, R_> & other) const
   {
     return !(*this == other);
   }
@@ -322,30 +329,30 @@ public:
     return _idx - other._idx;
   }
 
-  template<typename K_, typename M_, typename H_, typename P_, typename A_>
+  template<typename K_, typename M_, typename HU_, typename H_, typename P_, typename A_, typename R_>
   inline bool operator<(
-    const UnorderedMapLocalIter<K_, M_, H_, P_, A_> & other) const
+    const UnorderedMapLocalIter<K_, M_, HU_, H_, P_, A_, R_> & other) const
   {
     return (_idx < other._idx);
   }
 
-  template<typename K_, typename M_, typename H_, typename P_, typename A_>
+  template<typename K_, typename M_, typename HU_, typename H_, typename P_, typename A_, typename R_>
   inline bool operator<=(
-    const UnorderedMapLocalIter<K_, M_, H_, P_, A_> & other) const
+    const UnorderedMapLocalIter<K_, M_, HU_, H_, P_, A_, R_> & other) const
   {
     return (_idx <= other._idx);
   }
 
-  template<typename K_, typename M_, typename H_, typename P_, typename A_>
+  template<typename K_, typename M_, typename HU_, typename H_, typename P_, typename A_, typename R_>
   inline bool operator>(
-    const UnorderedMapLocalIter<K_, M_, H_, P_, A_> & other) const
+    const UnorderedMapLocalIter<K_, M_, HU_, H_, P_, A_, R_> & other) const
   {
     return (_idx > other._idx);
   }
 
-  template<typename K_, typename M_, typename H_, typename P_, typename A_>
+  template<typename K_, typename M_, typename HU_, typename H_, typename P_, typename A_, typename R_>
   inline bool operator>=(
-    const UnorderedMapLocalIter<K_, M_, H_, P_, A_> & other) const
+    const UnorderedMapLocalIter<K_, M_, HU_, H_, P_, A_, R_> & other) const
   {
     return (_idx >= other._idx);
   }
@@ -360,7 +367,45 @@ private:
                    "unit:",   _myid,
                    "lidx:",   _idx,
                    "offset:", offset);
+    if (offset == 0) return;
+
+    if (offset < 0) {
+      decrement(-offset);
+      return;
+    }
+
+
     _idx += offset;
+
+    auto const & u_bucket_cumul_sizes = _map->_local_bucket_cumul_sizes[_myid];
+
+    auto const lsz = u_bucket_cumul_sizes.size() ?
+      u_bucket_cumul_sizes.back() : 0;
+
+    if (_idx > lsz) {
+      //if _idx equals lsz then it is only the special local end iterator
+      DASH_LOG_ERROR("UnorderedMapLocalIter.increment", "index out of range", _idx);
+      reset_idx_bucket_phase();
+      return;
+    }
+
+    if (_idx_bucket > -1) {
+        //Update bucket phase and bucket idx
+
+        for (;
+             _idx_bucket < u_bucket_cumul_sizes.size() && u_bucket_cumul_sizes[_idx_bucket] < _idx;
+             ++_idx_bucket)
+          ;
+
+        _idx_bucket_phase =
+            (_idx_bucket > 0)
+                ? _idx - u_bucket_cumul_sizes[_idx_bucket - 1]
+                : _idx;
+    }
+    else {
+      reset_idx_bucket_phase();
+    }
+
     DASH_LOG_TRACE("UnorderedMapLocalIter.increment >");
   }
 
@@ -377,11 +422,87 @@ private:
     DASH_LOG_TRACE("UnorderedMapLocalIter.decrement >");
   }
 
+  void reset_idx_bucket_phase() {
+    auto& u_bucket_cumul_sizes = _map->_local_bucket_cumul_sizes[_myid];
+
+
+    if (u_bucket_cumul_sizes.size() == 0 || u_bucket_cumul_sizes.back() == 0) {
+      //Update to local begin
+      _idx = 0;
+      _idx_bucket = 0;
+      _idx_bucket_phase = 0;
+      return;
+    } else if (_idx >= u_bucket_cumul_sizes.back()) {
+      //Update to
+      _idx = u_bucket_cumul_sizes.back();
+
+      //Find last filled bucket
+      auto const last_bkt_size = u_bucket_cumul_sizes.back();
+
+      index_type bkt =
+          (u_bucket_cumul_sizes.size() >
+          1) ? u_bucket_cumul_sizes.size() - 2 : 0;
+
+      for (; bkt >= 0 && u_bucket_cumul_sizes[bkt] == last_bkt_size; --bkt);
+
+      //Last bucket
+      _idx_bucket = bkt;
+
+      //Set bucket phase to mark local end
+      _idx_bucket_phase =
+          (_idx_bucket > 0)
+              ? last_bkt_size - u_bucket_cumul_sizes[_idx_bucket - 1]
+              : last_bkt_size;
+      return;
+    }
+    // Find corresponding bucket and bucket phase
+
+    for (_idx_bucket = 0;
+         _idx_bucket < u_bucket_cumul_sizes.size() &&
+         u_bucket_cumul_sizes[_idx_bucket] < _idx;
+         ++_idx_bucket) {
+    }
+
+    if (_idx_bucket > 0) {
+      _idx_bucket_phase = _idx - u_bucket_cumul_sizes[_idx_bucket - 1];
+    } else {
+      _idx_bucket_phase = _idx;
+    }
+
+    DASH_LOG_TRACE("UnorderedMapLocalIter.reset_idx_bucket_phase",
+                   "(local index : bucket idx : bucket_phase) -->",
+                   _idx, ":", _idx_bucket, ":",
+                   _idx_bucket_phase);
+  }
+
+  inline index_type gmem_idx_at_lidx() const noexcept{
+    DASH_ASSERT_GT(_idx_bucket, -1, "UnorderedMapLocalIter: invalid state");
+
+    index_type gmem_idx;
+    if (_idx_bucket > 0) {
+      gmem_idx =
+          (_idx_bucket - 1) * _map->_local_buffer_size + _idx_bucket_phase;
+    }
+    else {
+      DASH_ASSERT_EQ(_idx, _idx_bucket_phase, "UnorderedMapLocalIter: invalid state");
+      gmem_idx = _idx;
+    }
+
+    DASH_LOG_TRACE("UnorderedMapLocalIter.gmem_idx_at_lidx", _idx,
+                   "-->", gmem_idx);
+
+    return gmem_idx;
+  }
+
 private:
   /// Pointer to referenced map instance.
   map_t                  * _map           = nullptr;
   /// Current position of the iterator in local canonical index space.
-  index_type               _idx           = -1;
+  index_type               _idx                 = -1;
+  /// Current bucket idx of the iterator in local cannonical index space
+  index_type               _idx_bucket          = -1;
+  /// Current bucket phase of the iterator in local cannonical index space
+  index_type               _idx_bucket_phase    = -1;
   /// Unit id of the active unit.
   team_unit_t              _myid          = DART_UNDEFINED_TEAM_UNIT_ID;
   /// Whether the iterator represents a null pointer.
@@ -392,13 +513,15 @@ private:
 template<
   typename Key,
   typename Mapped,
+  typename HashUnit,
   typename Hash,
   typename Pred,
-  typename Alloc >
+  typename Alloc,
+  typename RehashPolicy>
 std::ostream & operator<<(
   std::ostream & os,
   const dash::UnorderedMapLocalIter<
-          Key, Mapped, Hash, Pred, Alloc> & it)
+          Key, Mapped, HashUnit, Hash, Pred, Alloc, RehashPolicy> & it)
 {
   std::ostringstream ss;
   ss << "dash::UnorderedMapLocalIter<"

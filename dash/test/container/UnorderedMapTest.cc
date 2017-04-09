@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm>
 
+
 TEST_F(UnorderedMapTest, Initialization)
 {
   typedef int                                  key_t;
@@ -20,13 +21,18 @@ TEST_F(UnorderedMapTest, Initialization)
   auto myid      = dash::myid();
 
   // Size of local commit buffer:
-  auto lbuf_size = 1;
-  // Initial number of elements per unit:
-  auto lcap_init = 1;
-  // Initial global capacity:
-  auto gcap_init = nunits * lcap_init;
+  size_t lbuf_size = 3;
   // Number of elements to insert:
   auto ninsert   = 3;
+  // Initial number of elements per unit:
+  size_t lcap_init = ninsert * lbuf_size;
+  map_t::rehash_policy_type policy{};
+  policy.next_size_over(lcap_init);
+  // Initial global capacity:
+  auto gcap_init = nunits * lcap_init;
+
+  int wait = 1;
+  while(wait);
 
   map_t map(gcap_init, lbuf_size);
 
@@ -34,6 +40,7 @@ TEST_F(UnorderedMapTest, Initialization)
   EXPECT_EQ_U(0, map.lsize());
   EXPECT_EQ_U(gcap_init, map.capacity());
   EXPECT_EQ_U(lcap_init, map.lcapacity());
+
 
   dash::barrier();
   DASH_LOG_DEBUG("UnorderedMapTest.Initialization", "map initialized");
@@ -347,7 +354,7 @@ struct HashCyclic
   : _nunits(team.size())
   { }
 
-  dash::team_unit_t operator()(const Key & key) {
+  dash::team_unit_t operator()(const Key & key) const {
     return dash::team_unit_t(key % _nunits);
   }
 

@@ -6,9 +6,7 @@
 #include <dash/memory/SimpleMemoryPool.h>
 #include <dash/Exception.h>
 
-/**
- * Test fixture for class DASH unit id types.
- */
+
 class SimpleMemoryPoolTest : public dash::test::TestBase {
  protected:
   SimpleMemoryPoolTest() {}

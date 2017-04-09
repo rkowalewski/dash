@@ -17,9 +17,11 @@ namespace dash {
 template<
   typename Key,
   typename Mapped,
+  typename HashUnit,
   typename Hash,
   typename Pred,
-  typename Alloc >
+  typename Alloc,
+  typename RehashPolicy>
 class UnorderedMapLocalRef;
 
 #else // ifdef DOXYGEN
@@ -28,30 +30,34 @@ class UnorderedMapLocalRef;
 template<
   typename Key,
   typename Mapped,
+  typename HashUnit,
   typename Hash,
   typename Pred,
-  typename Alloc >
+  typename Alloc,
+  typename RehashPolicy>
 class UnorderedMap;
 
 template<
   typename Key,
   typename Mapped,
+  typename HashUnit,
   typename Hash,
   typename Pred,
-  typename Alloc >
+  typename Alloc,
+  typename RehashPolicy>
 class UnorderedMapLocalRef
 {
 private:
-  typedef UnorderedMapLocalRef<Key, Mapped, Hash, Pred, Alloc>
+  typedef UnorderedMapLocalRef<Key, Mapped, HashUnit, Hash, Pred, Alloc, RehashPolicy>
     self_t;
 
-  typedef UnorderedMap<Key, Mapped, Hash, Pred, Alloc>
+  typedef UnorderedMap<Key, Mapped, HashUnit, Hash, Pred, Alloc, RehashPolicy>
     map_type;
 
 public:
   typedef Key                                                       key_type;
   typedef Mapped                                                 mapped_type;
-  typedef Hash                                                        hasher;
+  typedef Hash                                                  local_hasher;
   typedef Pred                                                     key_equal;
   typedef Alloc                                               allocator_type;
 
@@ -59,6 +65,7 @@ public:
   typedef typename map_type::difference_type                 difference_type;
   typedef typename map_type::size_type                             size_type;
   typedef typename map_type::value_type                           value_type;
+  typedef typename map_type::global_hasher                     global_hasher;
 
   typedef self_t                                                  local_type;
 
@@ -269,37 +276,28 @@ public:
   iterator find(const key_type & key)
   {
     DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.find()", key);
-    auto   & first = begin();
-    auto   & last  = end();
-    DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.find()", first);
-    DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.find()", last);
-    auto     pred  = key_eq();
-    iterator found = std::find_if(
-                       first, last,
-                       [&](const value_type & v) {
-                         DASH_LOG_TRACE("UnorderedMapLocalRef.find.eq",
-                                        v.first, "==?", key);
-                         return pred(v.first, key);
-                       });
+    auto const unit_bucket = bucket(key);
+
+    //check if we are in the local unit
+    if (unit_bucket.first != _map->_myid) return end();
+
+
+    const_iterator found = do_find(unit_bucket.first, unit_bucket.second, key);
+
     DASH_LOG_TRACE("UnorderedMapLocalRef.find >", found);
-    return found;
+
+    return iterator{_map, found.pos()};
   }
 
   const_iterator find(const key_type & key) const
   {
     DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.find() const", key);
-    auto   & first = begin();
-    auto   & last  = end();
-    DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.find()", first);
-    DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.find()", last);
-    auto     pred  = key_eq();
-    const_iterator found = std::find_if(
-                             first, last,
-                             [&](const value_type & v) {
-                               DASH_LOG_TRACE("UnorderedMapLocalRef.find.eq",
-                                              v.first, "==?", key);
-                               return pred(v.first, key);
-                             });
+    auto const unit_bucket = bucket(key);
+
+    if (unit_bucket.first != _map->_myid) return end();
+
+    const_iterator found = do_find(unit_bucket.first, unit_bucket.second, key);
+
     DASH_LOG_TRACE("UnorderedMapLocalRef.find const >", found);
     return found;
   }
@@ -314,11 +312,13 @@ public:
   {
     auto && key = value.first;
     DASH_LOG_DEBUG("UnorderedMapLocalRef.insert()", "key:", key);
+    auto const unit_bucket = bucket(key);
+
     auto result = std::make_pair(_map->_lend, false);
 
     // Look up existing element at given key:
     DASH_LOG_TRACE("UnorderedMapLocalRef.insert", "element key lookup");
-    const_iterator found = find(key);
+    const_iterator found = do_find(unit_bucket.first, unit_bucket.second, value.first);
     DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.insert", found);
 
     if (found != end()) {
@@ -329,7 +329,7 @@ public:
     } else {
       DASH_LOG_TRACE("UnorderedMapLocalRef.insert", "key not found");
       // Unit mapped to the new element's key by the hash function:
-      auto unit = hash_function()(key);
+      auto unit = unit_bucket.first;
       // Do not store local unit id in member as _map->_myid is initialized
       // after this instance (_map->local).
       auto myid = _map->_myid;
@@ -342,13 +342,14 @@ public:
           "key "     << key  << " which is mapped " <<
           "to unit " << unit << " by hash function");
       }
-      auto inserted = _map->_insert_at(unit, value);
+      auto const bucket_idx = unit_bucket.second;
+      auto inserted = _map->_insert_at(unit, bucket_idx, value);
       result.first  = inserted.first.local();
       result.second = inserted.second;
       // Updated local end iterator of the referenced map:
-      _map->_lend   = _map->_lbegin + _map->lsize();
+      //_map->_lend   = _map->_lbegin + _map->lsize();
       DASH_LOG_TRACE("UnorderedMapLocalRef.insert", "updated map.lend:",
-                     _map->_lend);
+                     end());
     }
     DASH_LOG_DEBUG("UnorderedMapLocalRef.insert >",
                    (result.second ? "inserted" : "existing"), ":",
@@ -385,8 +386,10 @@ public:
     const key_type & key)
   {
     DASH_LOG_DEBUG("UnorderedMapLocalRef.erase()", "key:", key);
-    auto b_idx  = bucket(key);
-    auto b_size = bucket_size(b_idx);
+    auto const unit_bucket = bucket(key);
+    auto const unit = unit_bucket.first;
+    auto const b_idx = unit_bucket.second;
+    auto const b_size = bucket_size(b_idx);
     DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.erase", b_idx);
     DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.erase", b_size);
 
@@ -416,14 +419,14 @@ public:
   // Bucket Interface
   //////////////////////////////////////////////////////////////////////////
 
-  inline size_type bucket(const key_type & key) const
+  inline std::pair<team_unit_t, size_type> bucket(const key_type & key) const
   {
     return _map->bucket(key);
   }
 
   inline size_type bucket_size(size_type bucket_index) const
   {
-    return _map->bucket_size(bucket_index);
+    return _map->bucket_size(_map->_myid, bucket_index);
   }
 
   //////////////////////////////////////////////////////////////////////////
@@ -435,9 +438,14 @@ public:
     return _map->key_eq();
   }
 
-  inline hasher hash_function() const
+  inline global_hasher hash_global() const
   {
-    return _map->hash_function();
+    return _map->hash_global();
+  }
+
+  inline local_hasher hash_local() const
+  {
+    return _map->hash_local();
   }
 
 private:
@@ -453,7 +461,7 @@ private:
    * Using `std::declval()` instead (to generate a compile-time
    * pseudo-instance for member resolution) only works if Key and Mapped
    * are default-constructible.
-   * 
+   *
    * Finally, the distance obtained from
    *
    *   &(lptr_value->second) - lptr_value
@@ -502,6 +510,35 @@ private:
                    "gptr to mapped:", gptr_mapped);
     DASH_LOG_TRACE("UnorderedMap.lptr_value_to_mapped >",
                    "lptr to mapped:", lptr_mapped);
+  }
+
+  const_iterator do_find(team_unit_t unit, index_type bucket, const key_type & key) const {
+
+    auto myid = _map->_myid;
+    if (unit != myid) return end();
+    //get the logical index of this bucket which is the number of elements
+    //residing in the buckets before this (!) bucket
+    auto u_bucket_lidx = (bucket > 0) ? _map->_local_bucket_cumul_sizes[unit][bucket -1] : 0;
+
+    //Local search
+    local_iterator first {_map, static_cast<index_type>(u_bucket_lidx)};
+    local_iterator last {_map, static_cast<index_type>(_map->_local_bucket_cumul_sizes[unit][bucket])};
+
+    DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.do_find()", unit);
+    DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.do_find()", bucket);
+    DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.do_find()", first);
+    DASH_LOG_TRACE_VAR("UnorderedMapLocalRef.do_find()", last);
+
+    const_local_iterator liter =
+        std::find_if(first, last, [&](const value_type & v) {
+          return key_eq()(v.first, key);
+        });
+
+    if (liter != last) {
+      return liter;
+    } else {
+      return cend();
+    }
   }
 
 }; // class UnorderedMapLocalRef

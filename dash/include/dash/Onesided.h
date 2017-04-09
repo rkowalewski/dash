@@ -120,7 +120,6 @@ void get_value(
                       ds.dtype),
     DART_OK);
 }
-
 } // namespace dash
 
 #endif // DASH__ONESIDED_H__
