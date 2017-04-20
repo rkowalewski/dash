@@ -612,6 +612,7 @@ private:
          ++_lidx_bucket) {
     }
 
+    if (_lidx_bucket > 0) {
       _lidx_bucket_phase = _idx_lidx - u_bucket_cumul_sizes[_lidx_bucket - 1];
     }
     else {
