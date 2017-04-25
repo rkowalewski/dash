@@ -343,7 +343,7 @@ public:
           "to unit " << unit << " by hash function");
       }
       auto const bucket_idx = unit_bucket.second;
-      auto inserted = _map->_insert_at(unit, bucket_idx, value);
+      auto inserted = _map->do_insert(unit, bucket_idx, value);
       result.first  = inserted.first.local();
       result.second = inserted.second;
       // Updated local end iterator of the referenced map:
