@@ -61,8 +61,8 @@ TEST_F(SharedTest, SpecifyOwner)
   value_t  value_b     = 2000;
   dash::team_unit_t l_owner_a(owner_a);
   dash::team_unit_t l_owner_b(owner_b);
-  shared_t shared_at_a(l_owner_a);
-  shared_t shared_at_b(l_owner_b);
+  shared_t shared_at_a(l_owner_a, dash::Team::All());
+  shared_t shared_at_b(l_owner_b, dash::Team::All());
 
   // Initialize shared values:
   if (dash::myid() == owner_a) {
