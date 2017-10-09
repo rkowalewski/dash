@@ -46,6 +46,19 @@ dart_ret_t dart_team_lock_init(
   dart_lock_t * lock)   DART_NOTHROW;
 
 /**
+ * Validate if the \c lock object is properly initialized.
+ *
+ * \param lock   The lock to validate.
+ * \param flag   Flag is set if the lock is properly initialize, otherwise false.
+ *
+ * \return \c DART_OK on sucess or an error code from \ref dart_ret_t otherwise.
+ *
+ * \threadsafe_none
+ * \ingroup DartSync
+ */
+dart_ret_t dart_lock_initialized(dart_lock_t lock, bool *flag) DART_NOTHROW;
+
+/**
  * Collective operation to destroy a \c lock initialized using
  * \ref dart_team_lock_init.
  *
@@ -118,4 +131,3 @@ dart_ret_t dart_lock_release(
 #endif
 
 #endif /* DART_SYNCHRONIZATION_H_INCLUDED */
-

@@ -127,6 +127,17 @@ dart_ret_t dart_team_lock_init(dart_team_t teamid, dart_lock_t* lock)
   return DART_OK;
 }
 
+dart_ret_t dart_lock_initialized(dart_lock_t lock, bool *flag)
+{
+  if (flag) {
+    *flag = NULL != lock && !DART_GPTR_ISNULL(lock->gptr_tail) &&
+            !DART_GPTR_ISNULL(lock->gptr_list) &&
+            lock->teamid != DART_TEAM_NULL;
+  }
+
+  return DART_OK;
+}
+
 dart_ret_t dart_lock_acquire(dart_lock_t lock)
 {
   /* lock the local mutex and keep it until the global lock is released */
@@ -408,7 +419,4 @@ dart_ret_t dart_team_lock_destroy(dart_lock_t* lock)
   *lock = NULL;
   return DART_OK;
 }
-
-
-
 

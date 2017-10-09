@@ -234,3 +234,4 @@ TEST_F(DARTLockTest, TeamLockUnlock) {
     dart_team_lock_destroy(&lock));
 
 }
+

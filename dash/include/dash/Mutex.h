@@ -13,10 +13,10 @@ namespace dash {
 /**
  * Behaves similar to \c std::mutex and is used to ensure mutual exclusion
  * within a dash team.
- * 
+ *
  * \note This works properly with \c std::lock_guard
  * \note Mutex cannot be placed in DASH containers
- * 
+ *
  * \code
  * // just for demonstration, better use atomic operations
  * dash::Mutex mx; // mutex for dash::Team::All();
@@ -39,40 +39,46 @@ public:
   /**
    * DASH Mutex is only valid for a dash team. If no team is passed, team all
    * is used.
-   * 
+   *
    * This function is not thread-safe
    * @param team team for mutual exclusive accesses
    */
-  explicit Mutex(Team & team = dash::Team::All());
-  
+  explicit Mutex(Team & team = dash::Team::Null());
+
   Mutex(const Mutex & other)               = delete;
   Mutex(Mutex && other)                    = default;
 
   self_t & operator=(const self_t & other) = delete;
-  
+
   /**
    * Collective destructor to destruct a DART lock.
-   * 
+   *
    * This function is not thread-safe
    */
   ~Mutex();
-  
+
+
+  /**
+   * Delayed initialization of a DASH Mutex
+   */
+  bool init(dash::Team const & team);
+
   /**
    * Block until the lock was acquired.
    */
   void lock();
-  
+
   /**
    * Try to acquire the lock and return immediately.
    * @return True if lock was successfully aquired, False otherwise
    */
   bool try_lock();
-  
+
   /**
    * Release the lock acquired through \c lock() or \c try_lock().
    */
   void unlock();
-  
+
 private:
   dart_lock_t   _mutex;
 }; // class Mutex
