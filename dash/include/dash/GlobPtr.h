@@ -244,6 +244,10 @@ public:
     return local();
   }
 
+  operator bool() const noexcept {
+    return *this != self_t(nullptr);
+  }
+
   /**
    * Converts pointer to its underlying global address.
    */
@@ -567,7 +571,7 @@ std::ostream & operator<<(
 
 /**
  * Internal type.
- * 
+ *
  * Specialization of \c dash::GlobPtr, wraps underlying global address
  * as global const pointer (not pointer to const).
  *
@@ -847,7 +851,7 @@ dash::gptrdiff_t distance(
  * \complexity  O(1)
  *
  * \ingroup     Algorithms
- * 
+ *
  * \concept{DashMemorySpaceConcept}
  */
 template<typename ElementType, class MemSpaceT>
