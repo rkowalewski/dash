@@ -94,3 +94,18 @@ if (";${DART_IMPLEMENTATIONS_LIST};" MATCHES ";shmem;")
     )"
   )
 endif()
+
+if (ENABLE_CUDA AND CUDA_FOUND)
+  set(CXXFLAGS_WRAP "-DDASH_USE_CUDA ${CXXFLAGS_WRAP}")
+  set(DASHCC "${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc -ccbin ${CMAKE_CXX_COMPILER}")
+  configure_file(
+    ${CMAKE_SOURCE_DIR}/dash/scripts/dashcc/dashcxx.in
+    ${CMAKE_BINARY_DIR}/bin/dash-nvcc
+    @ONLY)
+  install(
+    FILES ${CMAKE_BINARY_DIR}/bin/dash-nvcc
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+    PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
+                OWNER_EXECUTE GROUP_EXECUTE WORLD_EXECUTE)
+endif()
+
