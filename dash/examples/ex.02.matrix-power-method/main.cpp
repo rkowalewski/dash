@@ -19,13 +19,14 @@ void print_matrix(const MatrixT& matrix)
 
   // Creating local copy for output to prevent interleaving with log
   // messages:
-  value_t* matrix_copy = new value_t[matrix.size()];
-  auto     copy_end    = std::copy(matrix.begin(), matrix.end(), matrix_copy);
-  DASH_ASSERT(copy_end == matrix_copy + matrix.size());
+  value_t*             matrix_copy = new value_t[matrix.size()];
+  std::vector<value_t> lcopy(matrix.size());
+  auto copy_end = std::copy(matrix.begin(), matrix.end(), std::begin(lcopy));
+  DASH_ASSERT(copy_end == std::end(lcopy));
   cout << "Matrix:" << endl;
   for (auto r = 0; r < rows; ++r) {
     for (auto c = 0; c < cols; ++c) {
-      cout << " " << setw(5) << matrix_copy[r * cols + c];
+      cout << " " << setw(5) << std::setprecision(3) << lcopy[r * cols + c];
     }
     cout << endl;
   }
@@ -44,7 +45,7 @@ void print_array(const ArrayT& array)
   DASH_ASSERT(copy_end == array_copy + array.size());
   cout << "Array:" << endl;
   for (auto r = 0; r < array.size(); ++r) {
-    cout << " " << setw(5) << array_copy[r];
+    cout << " " << setw(5) << std::setprecision(3) << array_copy[r];
   }
   cout << endl;
   delete[] array_copy;
@@ -84,15 +85,15 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
 
   std::vector<value_t> xcopy(x.size() - x.lsize());
 
-  auto const x_gpos0    = x.pattern().global(0);
-  auto const x_gpos_end = x_gpos0 + x.lsize();
+  auto const x_gpos_begin    = x.pattern().global(0);
+  auto const x_gpos_end = x_gpos_begin + x.lsize();
 
   std::vector<dash::Future<value_t*>> futs;
 
   /*
    * Phase 1: Start Async Copies
    */
-  if (x_gpos0 == 0) {
+  if (x_gpos_begin == 0) {
     // first unit
     futs.emplace_back(
         dash::copy_async(x.begin() + x.lsize(), x.end(), xcopy.data()));
@@ -100,7 +101,7 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
   else {
     // last unit
     futs.emplace_back(
-        dash::copy_async(x.begin(), x.begin() + x_gpos0, xcopy.data()));
+        dash::copy_async(x.begin(), x.begin() + x_gpos_begin, xcopy.data()));
 
     if (x_gpos_end != x.size()) {
       // if we are in the middle...
@@ -108,7 +109,7 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
           x.begin() + x_gpos_end,
           x.end(),
           std::next(
-              xcopy.data(), dash::distance(x.begin(), x.begin() + x_gpos0))));
+              xcopy.data(), dash::distance(x.begin(), x.begin() + x_gpos_begin))));
     }
   }
 
@@ -135,7 +136,7 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
   /*
    * Phase 4: Compute other parts with remote values
    */
-  if (x_gpos0 == 0) {
+  if (x_gpos_begin == 0) {
     for (std::size_t row = 0; row < nlrows_A; ++row) {
       // we start now with the first non-local column
       for (std::size_t col = x_gpos_end; col < x.size(); ++col) {
@@ -146,7 +147,7 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
   else if (x_gpos_end == x.size()) {
     for (std::size_t row = 0; row < nlrows_A; ++row) {
       // we start now with the first non-local column
-      for (std::size_t col = 0; col < x_gpos0; ++col) {
+      for (std::size_t col = 0; col < x_gpos_begin; ++col) {
         out.local[row] += A.local[row][col] * xcopy.at(col);
       }
     }
@@ -154,7 +155,7 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
   else {
     for (std::size_t row = 0; row < nlrows_A; ++row) {
       // first do everything before local part
-      for (std::size_t col = 0; col < x_gpos0; ++col) {
+      for (std::size_t col = 0; col < x_gpos_begin; ++col) {
         out.local[row] += A.local[row][col] * xcopy.at(col);
       }
 
@@ -162,6 +163,77 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
       for (std::size_t col = x_gpos_end; col < x.size(); ++col) {
         out.local[row] += A.local[row][col] * xcopy.at(col - nlcols);
       }
+    }
+  }
+}
+
+template <class MatrixT, class ArrayT>
+static void dot_full_cpy(MatrixT const& A, ArrayT const& x, ArrayT& out)
+{
+  using iterator_t = decltype(A.begin());
+
+  using value_t = typename std::remove_cv<
+      typename dash::iterator_traits<iterator_t>::value_type>::type;
+
+  DASH_ASSERT_ALWAYS(x.lsize() == out.lsize());
+
+  constexpr size_t DIMX = 1;
+  constexpr size_t DIMY = 0;
+
+ DASH_ASSERT_ALWAYS(A.extent(DIMY) == x.size());
+
+  std::vector<value_t> xcopy(x.size());
+
+  auto const x_gpos_begin    = x.pattern().global(0);
+  auto const x_gpos_end = x_gpos_begin + x.lsize();
+
+  std::vector<dash::Future<value_t*>> futs;
+
+  // copy everything before local part...
+  futs.emplace_back(
+      dash::copy_async(x.begin(), x.begin() + x_gpos_begin, xcopy.data()));
+
+  // copy everything after local part...
+  futs.emplace_back(dash::copy_async(
+      x.begin() + x_gpos_end,
+      x.end(),
+      std::next(
+          xcopy.data(), x_gpos_end)));
+
+  /*
+   * Phase 2: Compute local part
+   */
+  std::fill(out.lbegin(), out.lend(), 0);
+
+  //jump over locals rows and cols of A and multiply it with x.local
+  for (std::size_t row = 0; row < A.local.extent(DIMY); ++row) {
+    for (std::size_t col = 0; col < x.lsize(); ++col) {
+      out.local[row] += A.local[row][col] * x.local[col];
+    }
+  }
+
+  //copy local -> give more time to complete outstanding requests
+  std::copy(x.lbegin(), x.lend(), std::next(xcopy.data(), x_gpos_begin));
+
+  /*
+   * Phase 3: Wait for Async Copies
+   */
+  for (auto& fut : futs) {
+    fut.wait();
+  }
+
+  /*
+   * Phase 4: Compute other parts with remote values
+   */
+  for (std::size_t row = 0; row < A.local.extent(DIMY); ++row) {
+    // everything before local part of x
+    for (std::size_t col = x_gpos_end; col < x.size(); ++col) {
+      out.local[row] += A.local[row][col] * xcopy.at(col);
+    }
+
+    // everything after local part of x
+    for (std::size_t col = 0; col < x_gpos_begin; ++col) {
+      out.local[row] += A.local[row][col] * xcopy.at(col);
     }
   }
 }
@@ -209,6 +281,8 @@ int main(int argc, char* argv[])
 
   auto const myid = dash::myid();
 
+  constexpr size_t niter = 10;
+
   size_t team_size = dash::Team::All().size();
   size_t extent_x  = dash::size();
   size_t extent_y  = extent_x;
@@ -234,8 +308,9 @@ int main(int argc, char* argv[])
     print_array(x);
   }
 
-  for (std::size_t it = 0; it < 10; ++it) {
-    dot(A, x, y);
+  for (std::size_t it = 0; it < niter; ++it) {
+    //dot(A, x, y);
+    dot_full_cpy(A, x, y);
 
     // implicit barrier
     auto const norm = vectorNorm(y);
@@ -244,7 +319,7 @@ int main(int argc, char* argv[])
 
     y.barrier();
 
-    if (it < 9) {
+    if (it < niter - 1) {
       std::swap(x, y);
     }
 
