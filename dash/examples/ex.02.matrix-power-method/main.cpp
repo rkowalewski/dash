@@ -4,6 +4,7 @@
 #include <iostream>
 #include <random>
 
+#include <numeric>
 #include <dash/LocalMirror.h>
 #include <libdash.h>
 
@@ -255,12 +256,12 @@ static void dot_mirror(MatrixT const& A, ArrayT const& x, ArrayT& out)
   DASH_ASSERT_ALWAYS(A.extent(DIMY) == x.size());
 
 #if 1 == 1
-  using mirror_t   = dash::LocalMirror<decltype(x.begin()), dash::HostSpace>;
+  using mirror_t = dash::LocalMirror<decltype(x.begin()), dash::HostSpace>;
 #elif 1 == 2
-  using mirror_t   = dash::LocalMirror<decltype(x.begin()), dash::HBWSpace>;
+  using mirror_t = dash::LocalMirror<decltype(x.begin()), dash::HBWSpace>;
 #endif
 
-  mirror_t                            mirror{};
+  mirror_t mirror{};
 
   mirror.replicate(x.begin(), x.end());
 
@@ -273,7 +274,6 @@ static void dot_mirror(MatrixT const& A, ArrayT const& x, ArrayT& out)
   for (std::size_t row = 0; row < A.local.extent(DIMY); ++row) {
     for (std::size_t col = 0; col < x.lsize(); ++col) {
       auto const val = mirror.lbegin()[col];
-      DASH_LOG_DEBUG_VAR("local part of local mirror", val);
       out.local[row] += A.local[row][col] * mirror.lbegin()[col];
     }
   }
