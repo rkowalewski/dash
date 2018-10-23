@@ -256,14 +256,23 @@ static void dot_mirror(MatrixT const& A, ArrayT const& x, ArrayT& out)
   DASH_ASSERT_ALWAYS(A.extent(DIMY) == x.size());
 
 #if 1 == 1
+  //using mirror_t = dash::LocalMirror<T, dash::HostSpace>;
   using mirror_t = dash::LocalMirror<decltype(x.begin()), dash::HostSpace>;
 #elif 1 == 2
   using mirror_t = dash::LocalMirror<decltype(x.begin()), dash::HBWSpace>;
 #endif
 
-  mirror_t mirror{};
+  mirror_t mirror{/* reduction_operator, permissions, monitoring */};
 
-  mirror.replicate(x.begin(), x.end());
+  //mirror.pull -> launch policy
+  //mirror.push
+  //mirror.pull_local ?
+  //mirror.push_local ?
+  //-> return future from replication / copy
+  //-> launch policy -> sync vs. async
+  mirror.replicate(x.begin() + 10, x.end());
+
+  //mirror.wait_local() -> local data replicated
 
   /*
    * Phase 2: Compute local part
@@ -280,6 +289,8 @@ static void dot_mirror(MatrixT const& A, ArrayT const& x, ArrayT& out)
 
   auto const x_gpos_begin = x.pattern().lbegin();
   auto const x_gpos_end   = x.pattern().lend();
+
+  //mirror,flush() -> remote data is available on return
 
   /*
    * Phase 4: Compute other parts with remote values
