@@ -21,6 +21,7 @@ COMPILE_ONLY=false
 LINK_ONLY=true
 DASH_NOCPPFLAGS=false
 COMPILER_ARGS=""
+IS_CUDA=false
 
 function INVOKE_COMPILER()
 {
@@ -50,8 +51,12 @@ for arg in $@ ; do
     LINK_ONLY=false
   fi
   # check for source files
-  if [[ $arg == *\.cc || $arg == *\.cpp ]] ; then
+  if [[ $arg == *\.cc || $arg == *\.cpp || $arg == *\.cu ]] ; then
     LINK_ONLY=false
+  fi
+  if [[ $arg == *\.cu ]] ; then
+    LINK_ONLY=false
+    IS_CUDA=true
   fi
   if [ "$arg" == "--dash:verbose" -o "$arg" == "-dash:verbose" ] ; then
     DASH_VERBOSE=true

@@ -18,6 +18,13 @@
 #include <dash/internal/Logging.h>
 #include <dash/util/Trace.h>
 
+#ifdef DASH_USE_CUDA
+#include <thrust/copy.h>
+#include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
+#include <thrust/sort.h>
+#endif
+
 namespace dash {
 
 #ifdef DOXYGEN
@@ -117,7 +124,15 @@ void sort(GlobRandomIt begin, GlobRandomIt end, SortableHash sortable_hash)
   if (pattern.team().size() == 1) {
     DASH_LOG_TRACE("dash::sort", "Sorting on a team with only 1 unit");
     trace.enter_state("final_local_sort");
+#ifdef DASH_USE_CUDA
+    thrust::device_vector<int> d_vec(std::distance(begin.local(), end.local()));
+    thrust::copy(begin.local(), end.local(), d_vec.begin());
+    thrust::sort(d_vec.begin(), d_vec.end());
+    thrust::copy(d_vec.begin(), d_vec.end(), begin.local());
+    assert(std::distance(begin.local(), end.local()) == std::distance(d_vec.begin(), d_vec.end()));
+#else
     std::sort(begin.local(), end.local(), sort_comp);
+#endif
     trace.exit_state("final_local_sort");
     return;
   }
@@ -148,7 +163,15 @@ void sort(GlobRandomIt begin, GlobRandomIt end, SortableHash sortable_hash)
 
   // initial local_sort
   trace.enter_state("1:initial_local_sort");
+#ifdef DASH_USE_CUDA
+  cudaSetDevice(dash::myid() % 2);
+  thrust::device_vector<int> d_vec(std::distance(lbegin, lend));
+  thrust::copy(lbegin, lend, d_vec.begin());
+  thrust::sort(d_vec.begin(), d_vec.end());
+  thrust::copy(d_vec.begin(), d_vec.end(), lbegin);
+#else
   std::sort(lbegin, lend, sort_comp);
+#endif
   trace.exit_state("1:initial_local_sort");
 
   trace.enter_state("2:init_temporary_global_data");
