@@ -255,10 +255,9 @@ static void dot_mirror(MatrixT const& A, ArrayT const& x, ArrayT& out)
 
   DASH_ASSERT_ALWAYS(A.extent(DIMY) == x.size());
 
-#if 1 == 1
-  //using mirror_t = dash::LocalMirror<T, dash::HostSpace>;
+#if 1
   using mirror_t = dash::LocalMirror<decltype(x.begin()), dash::HostSpace>;
-#elif 1 == 2
+#else
   using mirror_t = dash::LocalMirror<decltype(x.begin()), dash::HBWSpace>;
 #endif
 
@@ -270,7 +269,7 @@ static void dot_mirror(MatrixT const& A, ArrayT const& x, ArrayT& out)
   //mirror.push_local ?
   //-> return future from replication / copy
   //-> launch policy -> sync vs. async
-  mirror.replicate(x.begin() + 10, x.end());
+  mirror.replicate(x.begin(), x.end());
 
   //mirror.wait_local() -> local data replicated
 
@@ -343,6 +342,9 @@ void dot(ArrayT& inout, typename ArrayT::value_type scalar)
 int main(int argc, char* argv[])
 {
   dash::init(&argc, &argv);
+
+  int wait = 1;
+  while(wait);
 
   using value_t     = double;
   using block_pat_t = dash::BlockPattern<2, dash::ROW_MAJOR>;

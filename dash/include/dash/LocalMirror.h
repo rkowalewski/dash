@@ -24,7 +24,7 @@ class LocalMirror {
   using value_t       = typename std::remove_cv<
       typename dash::iterator_traits<GlobInputIt>::value_type>::type;
 
-  using allocator_type = cpp17::pmr::polymorphic_allocator<value_t>;
+  using allocator_type = std::pmr::polymorphic_allocator<value_t>;
 
 public:
   /// public type-defs
@@ -196,9 +196,9 @@ inline void LocalMirror<GlobInputIt, MemorySpace>::replicate(
         "corner case (empty local range) not implemented yet");
   }
 
-  // Global index of first element in pattern
+  // Global index of first local element
   auto const l_first_gindex = pattern.lbegin();
-  // Global index of last element in pattern
+  // Global index of last local element
   auto const l_last_gindex = pattern.lend();
 
   DASH_LOG_TRACE(
@@ -269,13 +269,14 @@ inline void LocalMirror<GlobInputIt, MemorySpace>::replicate(
 
   m_futs.emplace_back(dash::Future<pointer>{
       [first, lbegin_index, lend_index, data, lbegin_gindex]() {
+
+        auto const *lbegin = dash::local_begin(
+            static_cast<typename GlobInputIt::const_pointer>(first),
+            first.team().myid());
+
         return std::copy(
-            std::next(
-                static_cast<const_pointer>(first.globmem().lbegin()),
-                lbegin_index),
-            std::next(
-                static_cast<const_pointer>(first.globmem().lbegin()),
-                lend_index),
+            std::next(lbegin, lbegin_index),
+            std::next(lbegin, lend_index),
             std::next(data, lbegin_gindex));
       }});
 }
