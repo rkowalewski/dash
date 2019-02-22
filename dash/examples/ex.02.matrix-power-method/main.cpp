@@ -343,9 +343,6 @@ int main(int argc, char* argv[])
 {
   dash::init(&argc, &argv);
 
-  int wait = 1;
-  while(wait);
-
   using value_t     = double;
   using block_pat_t = dash::BlockPattern<2, dash::ROW_MAJOR>;
   using narray_t =
