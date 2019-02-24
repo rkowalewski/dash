@@ -4,13 +4,16 @@
 #include <iostream>
 #include <random>
 
-#include <numeric>
 #include <dash/LocalMirror.h>
 #include <libdash.h>
+#include <numeric>
 
 using std::cout;
 using std::endl;
 using std::setw;
+
+constexpr size_t DIM_X = 1;
+constexpr size_t DIM_Y = 0;
 
 template <class MatrixT>
 void print_matrix(const MatrixT& matrix)
@@ -74,14 +77,14 @@ static void rand_range(GlobIter begin, GlobIter end)
 }
 
 template <class MatrixT, class ArrayT>
-static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
+static void dot(MatrixT const& A, ArrayT const& x, ArrayT& y)
 {
   using iterator_t = decltype(A.begin());
 
   using value_t = typename std::remove_cv<
       typename dash::iterator_traits<iterator_t>::value_type>::type;
 
-  assert(x.lsize() == out.lsize());
+  assert(x.lsize() == y.lsize());
 
   auto const nlrows_A = A.local.extent(0);
   auto const nlcols_A = A.local.extent(1);
@@ -123,13 +126,13 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
   /*
    * Phase 2: Compute local part
    */
-  std::fill(out.lbegin(), out.lend(), 0);
+  std::fill(y.lbegin(), y.lend(), 0);
 
   auto const nlcols = std::min(nlcols_A, nlrows_x);
 
   for (std::size_t row = 0; row < nlrows_A; ++row) {
     for (std::size_t col = 0; col < nlcols; ++col) {
-      out.local[row] += A.local[row][col] * x.local[col];
+      y.local[row] += A.local[row][col] * x.local[col];
     }
   }
 
@@ -147,7 +150,7 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
     for (std::size_t row = 0; row < nlrows_A; ++row) {
       // we start now with the first non-local column
       for (std::size_t col = x_gpos_end; col < x.size(); ++col) {
-        out.local[row] += A.local[row][col] * xcopy.at(col - nlcols);
+        y.local[row] += A.local[row][col] * xcopy.at(col - nlcols);
       }
     }
   }
@@ -155,7 +158,7 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
     for (std::size_t row = 0; row < nlrows_A; ++row) {
       // we start now with the first non-local column
       for (std::size_t col = 0; col < x_gpos_begin; ++col) {
-        out.local[row] += A.local[row][col] * xcopy.at(col);
+        y.local[row] += A.local[row][col] * xcopy.at(col);
       }
     }
   }
@@ -163,31 +166,28 @@ static void dot(MatrixT const& A, ArrayT const& x, ArrayT& out)
     for (std::size_t row = 0; row < nlrows_A; ++row) {
       // first do everything before local part
       for (std::size_t col = 0; col < x_gpos_begin; ++col) {
-        out.local[row] += A.local[row][col] * xcopy.at(col);
+        y.local[row] += A.local[row][col] * xcopy.at(col);
       }
 
       // then do everything after local part
       for (std::size_t col = x_gpos_end; col < x.size(); ++col) {
-        out.local[row] += A.local[row][col] * xcopy.at(col - nlcols);
+        y.local[row] += A.local[row][col] * xcopy.at(col - nlcols);
       }
     }
   }
 }
 
 template <class MatrixT, class ArrayT>
-static void dot_full_cpy(MatrixT const& A, ArrayT const& x, ArrayT& out)
+static void dot_full_cpy(MatrixT const& A, ArrayT const& x, ArrayT& y)
 {
   using iterator_t = decltype(A.begin());
 
   using value_t = typename std::remove_cv<
       typename dash::iterator_traits<iterator_t>::value_type>::type;
 
-  DASH_ASSERT_ALWAYS(x.lsize() == out.lsize());
+  DASH_ASSERT_ALWAYS(x.lsize() == y.lsize());
 
-  constexpr size_t DIMX = 1;
-  constexpr size_t DIMY = 0;
-
-  DASH_ASSERT_ALWAYS(A.extent(DIMY) == x.size());
+  DASH_ASSERT_ALWAYS(A.extent(DIM_X) == x.size());
 
   std::vector<value_t> xcopy(x.size());
 
@@ -207,12 +207,12 @@ static void dot_full_cpy(MatrixT const& A, ArrayT const& x, ArrayT& out)
   /*
    * Phase 2: Compute local part
    */
-  std::fill(out.lbegin(), out.lend(), 0);
+  std::fill(y.lbegin(), y.lend(), 0);
 
   // jump over locals rows and cols of A and multiply it with x.local
-  for (std::size_t row = 0; row < A.local.extent(DIMY); ++row) {
+  for (std::size_t row = 0; row < A.local.extent(DIM_Y); ++row) {
     for (std::size_t col = 0; col < x.lsize(); ++col) {
-      out.local[row] += A.local[row][col] * x.local[col];
+      y.local[row] += A.local[row][col] * x.local[col];
     }
   }
 
@@ -229,31 +229,27 @@ static void dot_full_cpy(MatrixT const& A, ArrayT const& x, ArrayT& out)
   /*
    * Phase 4: Compute other parts with remote values
    */
-  for (std::size_t row = 0; row < A.local.extent(DIMY); ++row) {
+  for (std::size_t row = 0; row < A.local.extent(DIM_Y); ++row) {
     // everything before local part of x
     for (std::size_t col = x_gpos_end; col < x.size(); ++col) {
-      out.local[row] += A.local[row][col] * xcopy.at(col);
+      y.local[row] += A.local[row][col] * xcopy.at(col);
     }
 
     // everything after local part of x
     for (std::size_t col = 0; col < x_gpos_begin; ++col) {
-      out.local[row] += A.local[row][col] * xcopy.at(col);
+      y.local[row] += A.local[row][col] * xcopy.at(col);
     }
   }
 }
 
 template <class MatrixT, class ArrayT>
-static void dot_mirror(MatrixT const& A, ArrayT const& x, ArrayT& out)
+static void dot_mirror(MatrixT const& A, ArrayT const& x, ArrayT& y)
 {
   using iterator_t = decltype(A.begin());
   using value_t    = typename dash::iterator_traits<iterator_t>::value_type;
 
-  DASH_ASSERT_ALWAYS(x.lsize() == out.lsize());
-
-  constexpr size_t DIMX = 1;
-  constexpr size_t DIMY = 0;
-
-  DASH_ASSERT_ALWAYS(A.extent(DIMY) == x.size());
+  DASH_ASSERT_ALWAYS(A.extent(DIM_X) == x.size());
+  DASH_ASSERT_ALWAYS(A.extent(DIM_Y) == y.size());
 
 #if 1
   using mirror_t = dash::LocalMirror<decltype(x.begin()), dash::HostSpace>;
@@ -263,46 +259,47 @@ static void dot_mirror(MatrixT const& A, ArrayT const& x, ArrayT& out)
 
   mirror_t mirror{/* reduction_operator, permissions, monitoring */};
 
-  //mirror.pull -> launch policy
-  //mirror.push
-  //mirror.pull_local ?
-  //mirror.push_local ?
+  // mirror.pull -> launch policy
+  // mirror.push
+  // mirror.pull_local ?
+  // mirror.push_local ?
   //-> return future from replication / copy
   //-> launch policy -> sync vs. async
   mirror.replicate(x.begin(), x.end());
 
-  //mirror.wait_local() -> local data replicated
+  // mirror.wait_local() -> local data replicated
 
   /*
    * Phase 2: Compute local part
    */
-  std::fill(out.lbegin(), out.lend(), 0);
+  std::fill(y.lbegin(), y.lend(), 0);
 
   // jump over locals rows and cols of A and multiply it with x.local
-  for (std::size_t row = 0; row < A.local.extent(DIMY); ++row) {
+  for (std::size_t row = 0; row < A.local.extent(DIM_Y); ++row) {
     for (std::size_t col = 0; col < x.lsize(); ++col) {
-      auto const val = mirror.lbegin()[col];
-      out.local[row] += A.local[row][col] * mirror.lbegin()[col];
+      auto const valX = mirror.lbegin()[col];
+      auto const valA = A.local[row][col];
+      y.local[row] += valA * valX;
     }
   }
 
   auto const x_gpos_begin = x.pattern().lbegin();
   auto const x_gpos_end   = x.pattern().lend();
 
-  //mirror,flush() -> remote data is available on return
+  // mirror.flush() -> remote data is available on return
 
   /*
    * Phase 4: Compute other parts with remote values
    */
-  for (std::size_t row = 0; row < A.local.extent(DIMY); ++row) {
+  for (std::size_t row = 0; row < A.local.extent(DIM_Y); ++row) {
     // everything before local part of x
-    for (std::size_t col = x_gpos_end; col < x.size(); ++col) {
-      out.local[row] += A.local[row][col] * mirror.begin()[col];
+    for (std::size_t col = 0; col < x_gpos_begin; ++col) {
+      y.local[row] += A.local[row][col] * mirror.begin()[col];
     }
 
     // everything after local part of x
-    for (std::size_t col = 0; col < x_gpos_begin; ++col) {
-      out.local[row] += A.local[row][col] * mirror.begin()[col];
+    for (std::size_t col = x_gpos_end; col < x.size(); ++col) {
+      y.local[row] += A.local[row][col] * mirror.begin()[col];
     }
   }
 }
@@ -343,6 +340,14 @@ int main(int argc, char* argv[])
 {
   dash::init(&argc, &argv);
 
+  if (argc < 2) {
+    if (!dash::myid()) {
+      std::cout << argv[0] << " <extent>}\n";
+    }
+    dash::finalize();
+    return EXIT_FAILURE;
+  }
+
   using value_t     = double;
   using block_pat_t = dash::BlockPattern<2, dash::ROW_MAJOR>;
   using narray_t =
@@ -353,8 +358,8 @@ int main(int argc, char* argv[])
   constexpr size_t niter = 10;
 
   size_t team_size = dash::Team::All().size();
-  size_t extent_x  = 4;
-  size_t extent_y  = 4;
+  size_t extent_x  = std::atoll(argv[1]);
+  size_t extent_y  = extent_x;
 
   block_pat_t pat_blocked_row{
       dash::SizeSpec<2>(extent_y, extent_x),
@@ -364,11 +369,26 @@ int main(int argc, char* argv[])
 
   narray_t A{pat_blocked_row};
 
-  dash::Array<value_t> x(A.extent(1));
-  dash::Array<value_t> y(A.extent(1));
+  dash::Array<value_t> x(A.extent(DIM_X));
+  dash::Array<value_t> y(A.extent(DIM_Y));
 
+
+#if 0
   rand_range(A.begin(), A.end());
   rand_range(x.begin(), x.end());
+#else
+  // The global row index of first local row in A
+  auto A_rowIdx = A.pattern().lbegin() / extent_x;
+  for (std::size_t row = 0; row < A.local.extent(DIM_Y); ++row) {
+    std::fill(
+        &(A.local[row][0]),
+        &(A.local[row][extent_x - 1]) + 1,
+        A_rowIdx + row);
+  }
+
+  auto x_rowIdx = x.pattern().lbegin();
+  std::iota(x.lbegin(), x.lend(), x_rowIdx);
+#endif
 
   A.barrier();
 
@@ -385,15 +405,56 @@ int main(int argc, char* argv[])
     // implicit barrier
     auto const norm = vectorNorm(y);
 
+    //Here we operator only on the local part
     dot(y, value_t{1 / norm});
 
+#if 0
     y.barrier();
 
+    if (0 == myid) {
+      print_array(x);
+      print_array(y);
+
+      std::copy(
+          y.lbegin(),
+          y.lend(),
+          std::ostream_iterator<double>(std::cout, " "));
+      std::cout << "\n";
+      std::copy(
+          x.lbegin(),
+          x.lend(),
+          std::ostream_iterator<double>(std::cout, " "));
+      std::cout << "\n";
+
+      std::cout << "x.begin(): " << x.begin() << "\n";
+    }
     y.barrier();
+#endif
 
     if (it < niter - 1) {
       std::swap(x, y);
     }
+
+#if 0
+    y.barrier();
+    if (0 == myid) {
+      std::cout << "x.begin(): " << x.begin() << "\n";
+
+      std::copy(
+          y.lbegin(),
+          y.lend(),
+          std::ostream_iterator<double>(std::cout, " "));
+      std::cout << "\n";
+      std::copy(
+          x.lbegin(),
+          x.lend(),
+          std::ostream_iterator<double>(std::cout, " "));
+      std::cout << "\n";
+
+      print_array(x);
+      print_array(y);
+    }
+#endif
 
     y.barrier();
   }

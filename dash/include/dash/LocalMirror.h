@@ -243,11 +243,11 @@ inline void LocalMirror<GlobInputIt, MemorySpace>::replicate(
   DASH_LOG_TRACE(
       "LocalMirror.mirror(first, last) -> before local range",
       first.pos(),
-      (first + m_lend_gindex - 1).pos());
+      (first + m_lend_gindex).pos());
 
   // copy everthing before local part
   m_futs.emplace_back(
-      dash::copy_async(first, first + m_lend_gindex - 1, m_data.data()));
+      dash::copy_async(first, first + m_lbegin_gindex, m_data.data()));
 
   DASH_LOG_TRACE(
       "LocalMirror.mirror(first, last) -> after local range",
