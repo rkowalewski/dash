@@ -208,6 +208,7 @@ inline void LocalMirror<GlobInputIt, MemorySpace>::replicate(
       first_gindex,
       last_gindex);
 
+#if 0
   if (l_first_gindex < first_gindex ||  // local end before global begin
       l_last_gindex > last_gindex) {    // local begin after global end
     DASH_THROW(
@@ -215,6 +216,7 @@ inline void LocalMirror<GlobInputIt, MemorySpace>::replicate(
         "corner case (local range does not intercept global range) which is "
         "not implemented yet");
   }
+#endif
   // Intersect local range and global range, in global index domain:
   m_lbegin_gindex = std::max(l_first_gindex, first_gindex);
   m_lend_gindex   = std::min(l_last_gindex, last_gindex);
